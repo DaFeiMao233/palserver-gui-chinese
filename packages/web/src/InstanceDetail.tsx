@@ -10,6 +10,7 @@ import type {
 import type { AgentClient } from "./api";
 import { SettingsEditor } from "./SettingsEditor";
 import { ModsTab } from "./ModsTab";
+import { PalDefenderTab } from "./PalDefenderTab";
 import { PlayersTab } from "./PlayersTab";
 import { MapTab } from "./MapTab";
 import { ConsoleTab } from "./ConsoleTab";
@@ -29,6 +30,7 @@ type Tab =
   | "settings"
   | "engine"
   | "mods"
+  | "paldefender"
   | "saves"
   | "restart"
   | "logs";
@@ -40,6 +42,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "settings", label: "世界設定" },
   { id: "engine", label: "效能" },
   { id: "mods", label: "模組" },
+  { id: "paldefender", label: "PalDefender" },
   { id: "saves", label: "存檔備份" },
   { id: "restart", label: "自動重啟" },
   { id: "logs", label: "日誌" },
@@ -187,6 +190,7 @@ export function InstanceDetailPage({
         <EngineTab client={client} instanceId={detail.id} running={detail.status === "running"} />
       )}
       {tab === "mods" && <ModsTab client={client} instanceId={detail.id} />}
+      {tab === "paldefender" && <PalDefenderTab client={client} instanceId={detail.id} />}
       {tab === "saves" && (
         <SavesTab client={client} instanceId={detail.id} running={detail.status === "running"} />
       )}

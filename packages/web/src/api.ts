@@ -18,6 +18,8 @@ import type {
   ModComponent,
   ModerationLists,
   ModsStatus,
+  PalDefenderConfig,
+  PalDefenderConfigStatus,
   PresenceEvent,
   RconCommandsResponse,
   RestartPolicy,
@@ -175,6 +177,17 @@ export class AgentClient {
 
   saveWorld(id: string): Promise<{ saved: boolean }> {
     return this.request(`/api/instances/${id}/save`, { method: "POST", body: "{}" });
+  }
+
+  palDefenderConfig(id: string): Promise<PalDefenderConfigStatus> {
+    return this.request(`/api/instances/${id}/paldefender-config`);
+  }
+
+  updatePalDefenderConfig(id: string, patch: PalDefenderConfig): Promise<PalDefenderConfigStatus> {
+    return this.request(`/api/instances/${id}/paldefender-config`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    });
   }
 
   configHealth(id: string): Promise<ConfigHealth> {

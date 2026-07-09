@@ -2,7 +2,9 @@ import type { FastifyInstance } from "fastify";
 import {
   COMMANDS,
   ENGINE_OPTIONS,
+  PALDEFENDER_OPTIONS,
   type EngineSettings,
+  type PalDefenderConfig,
   CreateInstanceSchema,
   UpdateSettingsSchema,
   WorldSettingsSchema,
@@ -28,6 +30,7 @@ import * as files from "./files.js";
 import * as saves from "./saves.js";
 import { getEngineSettings, writeEngineSettings } from "./engine-ini.js";
 import { getConfigHealth, regenerateConfig } from "./config-health.js";
+import { getPalDefenderConfig, writePalDefenderConfig } from "./paldefender-config.js";
 import fs from "node:fs";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -322,6 +325,28 @@ export function registerRoutes(
     const { command } = z.object({ command: z.string().min(1).max(500) }).parse(req.body);
     const output = await rconExec(rec, command);
     return { command, output };
+  });
+
+  // ── PalDefender Config.json ──
+  app.get("/api/instances/:id/paldefender-config", async (req) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    return getPalDefenderConfig(rec, ctxOf(rec));
+  });
+
+  app.put("/api/instances/:id/paldefender-config", async (req) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    const shape = Object.fromEntries(
+      Object.entries(PALDEFENDER_OPTIONS).map(([key, meta]) => {
+        if (meta.type === "bool") return [key, z.boolean().optional()];
+        const num = meta.type === "int" ? z.number().int() : z.number();
+        return [key, num.min(meta.min).max(meta.max).optional()];
+      }),
+    );
+    const patch = z.object(shape).strict().parse(req.body);
+    const status = writePalDefenderConfig(rec, ctxOf(rec), patch as PalDefenderConfig);
+    // Try to hot-apply without a restart; harmless if RCON is off.
+    await rconExec(rec, "reloadcfg").catch(() => {});
+    return { ...status, applied: "reloaded" };
   });
 
   // ── config-file health & regeneration ──

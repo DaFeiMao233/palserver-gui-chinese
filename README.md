@@ -102,6 +102,10 @@ Real-server verification needs an x86_64 Linux host.
       parameter forms + raw input. Built-in server commands always; when
       PalDefender is installed its RCON-capable commands are added, filtered
       by the live `/getrconcmds` list so plugin updates don't strand the UI.
-- [ ] Save migration: import an existing world into an instance (v1 parity)
+- [x] Saves & backups tab: list worlds (with the active one per
+      `DedicatedServerName`), switch worlds, per-player save deletion,
+      tar.gz backup / restore / download, and scheduled backups (interval,
+      retention, skip-when-empty). Restores take a safety backup first and
+      refuse to run while the server is up. Migration guide: [docs/MIGRATION.md](docs/MIGRATION.md)
 - [ ] Failure detection surfaced in UI (process exits / container crash loops)
-- [ ] Backups & schedules, multi-host aggregation in the UI, TLS guidance, i18n (reuse v1 locales)
+- [ ] Multi-host aggregation in the UI, TLS guidance, i18n (reuse v1 locales)

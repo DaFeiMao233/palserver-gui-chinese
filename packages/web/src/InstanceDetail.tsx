@@ -13,10 +13,11 @@ import { ModsTab } from "./ModsTab";
 import { PlayersTab } from "./PlayersTab";
 import { MapTab } from "./MapTab";
 import { ConsoleTab } from "./ConsoleTab";
+import { SavesTab } from "./SavesTab";
 import { STATUS_LABELS } from "./labels";
 import { StatusBadge, btn, btnDanger, btnGhost, card, errorCls } from "./ui";
 
-type Tab = "overview" | "players" | "map" | "console" | "settings" | "mods" | "logs";
+type Tab = "overview" | "players" | "map" | "console" | "settings" | "mods" | "saves" | "logs";
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "總覽" },
   { id: "players", label: "玩家" },
@@ -24,6 +25,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "console", label: "指令" },
   { id: "settings", label: "世界設定" },
   { id: "mods", label: "模組" },
+  { id: "saves", label: "存檔備份" },
   { id: "logs", label: "日誌" },
 ];
 
@@ -165,6 +167,9 @@ export function InstanceDetailPage({
         />
       )}
       {tab === "mods" && <ModsTab client={client} instanceId={detail.id} />}
+      {tab === "saves" && (
+        <SavesTab client={client} instanceId={detail.id} running={detail.status === "running"} />
+      )}
       {tab === "logs" && <LogsTab client={client} instanceId={detail.id} />}
     </div>
   );

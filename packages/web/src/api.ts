@@ -1,5 +1,7 @@
 import type {
   AgentInfo,
+  BackupInfo,
+  BackupSchedule,
   CreateInstanceInput,
   DirEntry,
   FileContent,
@@ -14,6 +16,7 @@ import type {
   ModsStatus,
   PresenceEvent,
   RconCommandsResponse,
+  SavesStatus,
   WorldSettings,
 } from "@palserver/shared";
 
@@ -149,6 +152,60 @@ export class AgentClient {
 
   saveWorld(id: string): Promise<{ saved: boolean }> {
     return this.request(`/api/instances/${id}/save`, { method: "POST", body: "{}" });
+  }
+
+  saves(id: string): Promise<SavesStatus> {
+    return this.request(`/api/instances/${id}/saves`);
+  }
+
+  createBackup(id: string, worldGuid: string): Promise<BackupInfo> {
+    return this.request(`/api/instances/${id}/saves/backup`, {
+      method: "POST",
+      body: JSON.stringify({ worldGuid }),
+    });
+  }
+
+  restoreBackup(id: string, backup: string): Promise<{ worldGuid: string; safetyBackup: string }> {
+    return this.request(`/api/instances/${id}/saves/restore`, {
+      method: "POST",
+      body: JSON.stringify({ backup }),
+    });
+  }
+
+  deleteBackup(id: string, name: string): Promise<void> {
+    return this.request(`/api/instances/${id}/saves/backup?name=${encodeURIComponent(name)}`, {
+      method: "DELETE",
+    });
+  }
+
+  backupDownloadUrl(id: string, name: string): string {
+    const url = new URL(`${this.conn.url}/api/instances/${id}/saves/backup/download`);
+    url.searchParams.set("name", name);
+    url.searchParams.set("token", this.conn.token);
+    return url.toString();
+  }
+
+  setActiveWorld(id: string, worldGuid: string): Promise<{ active: string }> {
+    return this.request(`/api/instances/${id}/saves/active`, {
+      method: "POST",
+      body: JSON.stringify({ worldGuid }),
+    });
+  }
+
+  deletePlayerSave(id: string, worldGuid: string, file: string): Promise<void> {
+    const q = new URLSearchParams({ worldGuid, file });
+    return this.request(`/api/instances/${id}/saves/player?${q}`, { method: "DELETE" });
+  }
+
+  updateBackupSchedule(id: string, patch: Partial<BackupSchedule>): Promise<BackupSchedule> {
+    return this.request(`/api/instances/${id}/saves/schedule`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    });
+  }
+
+  runBackupSchedule(id: string): Promise<BackupSchedule> {
+    return this.request(`/api/instances/${id}/saves/schedule/run`, { method: "POST", body: "{}" });
   }
 
   listFiles(id: string, path: string): Promise<{ path: string; entries: DirEntry[] }> {

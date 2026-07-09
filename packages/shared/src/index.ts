@@ -223,6 +223,61 @@ export interface LiveStatus {
   players: RestPlayer[];
 }
 
+/* ── world saves & backups ── */
+
+export interface PlayerSave {
+  file: string;
+  /** the .sav filename without extension — Palworld's internal PlayerUid */
+  playerUid: string;
+  sizeBytes: number;
+}
+
+export interface WorldSave {
+  guid: string;
+  /** true when GameUserSettings.ini's DedicatedServerName points here */
+  active: boolean;
+  sizeBytes: number;
+  modifiedAt: string;
+  playerSaves: PlayerSave[];
+}
+
+export interface BackupInfo {
+  name: string;
+  worldGuid: string;
+  sizeBytes: number;
+  createdAt: string;
+  /** true when the server flushed the world to disk before archiving */
+  flushedBeforeBackup?: boolean;
+}
+
+/** Scheduled backups of the active world, run by the agent. */
+export interface BackupSchedule {
+  enabled: boolean;
+  /** minutes between backups */
+  intervalMinutes: number;
+  /** how many archives of a world to keep; older ones are pruned */
+  keep: number;
+  /** skip a run when nobody is online (avoids piles of identical archives) */
+  skipWhenEmpty: boolean;
+  lastRunAt?: string;
+  lastResult?: string;
+}
+
+export const DEFAULT_BACKUP_SCHEDULE: BackupSchedule = {
+  enabled: false,
+  intervalMinutes: 60,
+  keep: 10,
+  skipWhenEmpty: true,
+};
+
+export interface SavesStatus {
+  supported: boolean;
+  reason?: string;
+  worlds: WorldSave[];
+  backups: BackupInfo[];
+  schedule: BackupSchedule;
+}
+
 export interface AgentInfo {
   name: string;
   version: string;

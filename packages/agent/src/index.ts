@@ -11,6 +11,9 @@ import { DATA_DIR, HOST, PORT, AGENT_VERSION } from "./env.js";
 import { loadOrCreateToken, makeAuthHook } from "./auth.js";
 import { InstanceStore } from "./store.js";
 import { PresenceTracker } from "./presence.js";
+import { BackupScheduler } from "./backup-scheduler.js";
+import { nativeDriver } from "./native.js";
+import { dockerDriver } from "./docker.js";
 import { registerRoutes } from "./routes.js";
 
 const app = Fastify({ logger: true, bodyLimit: 1024 * 1024 * 1024 });
@@ -52,7 +55,12 @@ app.addHook("onRequest", async (req, reply) => {
 const presence = new PresenceTracker(store);
 presence.start();
 
-registerRoutes(app, store, presence);
+const scheduler = new BackupScheduler(store, (rec) =>
+  rec.backend === "native" ? nativeDriver : dockerDriver,
+);
+scheduler.start();
+
+registerRoutes(app, store, presence, scheduler);
 
 await app.listen({ host: HOST, port: PORT });
 

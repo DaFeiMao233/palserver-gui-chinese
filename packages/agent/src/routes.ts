@@ -11,6 +11,7 @@ import {
 } from "@palserver/shared";
 import { fetchServerCommands, rconExec, requireRcon } from "./rcon.js";
 import type { PresenceTracker } from "./presence.js";
+import type { BackupScheduler } from "./backup-scheduler.js";
 import { AGENT_VERSION } from "./env.js";
 import type { InstanceStore, InstanceRecord } from "./store.js";
 import type { DriverContext, ServerDriver } from "./driver.js";
@@ -19,7 +20,9 @@ import { nativeDriver } from "./native.js";
 import { getModsStatus, installComponent, setLuaModEnabled } from "./mods.js";
 import { getLiveStatus, rest } from "./restapi.js";
 import * as files from "./files.js";
+import * as saves from "./saves.js";
 import fs from "node:fs";
+import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { z } from "zod";
 
@@ -32,6 +35,7 @@ export function registerRoutes(
   app: FastifyInstance,
   store: InstanceStore,
   presence: PresenceTracker,
+  scheduler: BackupScheduler,
 ): void {
   const ctxOf = (rec: InstanceRecord): DriverContext => ({
     instanceDir: store.instanceDir(rec.id),
@@ -277,6 +281,82 @@ export function registerRoutes(
     const { command } = z.object({ command: z.string().min(1).max(500) }).parse(req.body);
     const output = await rconExec(rec, command);
     return { command, output };
+  });
+
+  // ── world saves & backups ──
+  const isRunning = async (rec: InstanceRecord) =>
+    (await driverOf(rec).status(rec, ctxOf(rec))).status === "running";
+
+  app.get("/api/instances/:id/saves", async (req) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    return { ...saves.getSavesStatus(rec, ctxOf(rec)), schedule: scheduler.read(rec.id) };
+  });
+
+  app.put("/api/instances/:id/saves/schedule", async (req) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    const patch = z
+      .object({
+        enabled: z.boolean().optional(),
+        intervalMinutes: z.number().int().min(5).max(1440).optional(),
+        keep: z.number().int().min(1).max(100).optional(),
+        skipWhenEmpty: z.boolean().optional(),
+      })
+      .parse(req.body);
+    return scheduler.update(rec.id, patch);
+  });
+
+  /** Run the scheduled backup right now (same code path as the timer). */
+  app.post("/api/instances/:id/saves/schedule/run", async (req) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    return scheduler.runFor(rec);
+  });
+
+  app.post("/api/instances/:id/saves/backup", async (req, reply) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    const { worldGuid } = z.object({ worldGuid: z.string().min(1).max(64) }).parse(req.body);
+    reply.code(201);
+    return saves.createBackup(rec, ctxOf(rec), worldGuid);
+  });
+
+  app.post("/api/instances/:id/saves/restore", async (req) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    const { backup } = z.object({ backup: z.string().min(1).max(200) }).parse(req.body);
+    return saves.restoreBackup(rec, ctxOf(rec), backup, await isRunning(rec));
+  });
+
+  app.delete("/api/instances/:id/saves/backup", async (req, reply) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    const { name } = z.object({ name: z.string().min(1).max(200) }).parse(req.query);
+    saves.deleteBackup(ctxOf(rec), name);
+    reply.code(204);
+  });
+
+  app.get("/api/instances/:id/saves/backup/download", async (req, reply) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    const { name } = z.object({ name: z.string().min(1).max(200) }).parse(req.query);
+    const file = saves.backupPath(ctxOf(rec), name);
+    reply.header("content-type", "application/gzip");
+    reply.header("content-disposition", `attachment; filename="${path.basename(file)}"`);
+    return fs.createReadStream(file);
+  });
+
+  app.post("/api/instances/:id/saves/active", async (req) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    const { worldGuid } = z.object({ worldGuid: z.string().min(1).max(64) }).parse(req.body);
+    if (await isRunning(rec)) {
+      throw Object.assign(new Error("請先停止伺服器再切換世界"), { statusCode: 409 });
+    }
+    saves.setActiveWorldGuid(saves.serverRootOf(rec, ctxOf(rec)), worldGuid);
+    return { active: worldGuid, applied: "on-next-start" };
+  });
+
+  app.delete("/api/instances/:id/saves/player", async (req, reply) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    const { worldGuid, file } = z
+      .object({ worldGuid: z.string().min(1).max(64), file: z.string().min(1).max(100) })
+      .parse(req.query);
+    saves.deletePlayerSave(rec, ctxOf(rec), worldGuid, file, await isRunning(rec));
+    reply.code(204);
   });
 
   // ── file browser (native instances; confined to the server directory) ──

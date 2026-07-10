@@ -37,6 +37,14 @@ export interface Connection {
   token: string;
 }
 
+/** 匿名使用統計(遙測)狀態 — 對應 agent 的 GET/PUT /api/telemetry。 */
+export interface TelemetryStatus {
+  enabled: boolean;
+  /** true = 被 PALSERVER_TELEMETRY=0 強制停用,GUI 開關無效。 */
+  envDisabled: boolean;
+  installId: string;
+}
+
 const STORAGE_KEY = "palserver.connection";
 
 export function loadConnection(): Connection | null {
@@ -124,6 +132,15 @@ export class AgentClient {
   /** 這台 agent 的可連 IPv4 位址,用來組給其他裝置的登入連結。 */
   agentAddresses(): Promise<{ addresses: { ip: string; tailscale: boolean }[] }> {
     return this.request("/api/addresses");
+  }
+
+  /** 匿名使用統計(遙測)目前狀態。envDisabled=true 表示被環境變數強制停用。 */
+  telemetry(): Promise<TelemetryStatus> {
+    return this.request("/api/telemetry");
+  }
+
+  setTelemetry(enabled: boolean): Promise<TelemetryStatus> {
+    return this.request("/api/telemetry", { method: "PUT", body: JSON.stringify({ enabled }) });
   }
 
   listInstances(): Promise<InstanceSummary[]> {

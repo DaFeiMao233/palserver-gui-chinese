@@ -41,6 +41,7 @@ import { getEngineSettings, writeEngineSettings } from "./engine-ini.js";
 import { getConfigHealth, regenerateConfig } from "./config-health.js";
 import { getPalDefenderConfig, writePalDefenderConfig } from "./paldefender-config.js";
 import { getPlayerDetail, getPdRestStatus, setPdRestEnabled, provisionPdToken } from "./paldefender-rest.js";
+import { setTelemetryEnabled, telemetryStatus, track } from "./telemetry.js";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -111,6 +112,14 @@ export function registerRoutes(
       authenticated,
       platform: process.platform,
     };
+  });
+
+  // 匿名使用統計(遙測)開關。收集內容與原則見 PRIVACY.md;envDisabled=true 表示
+  // 被 PALSERVER_TELEMETRY=0 強制停用,GUI 開關無效。
+  app.get("/api/telemetry", async () => telemetryStatus());
+  app.put("/api/telemetry", async (req) => {
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
+    return setTelemetryEnabled(enabled);
   });
 
   // 配對:遠端裝置用好念的配對碼換發長 token。此端點本身免 token(靠配對碼保護)。
@@ -200,6 +209,7 @@ export function registerRoutes(
     if (rec.backend === "docker") {
       dockerOps.writeConfig(store.instanceDir(rec.id), settings);
     }
+    track("instance_created");
     reply.code(201);
     return toSummary(rec);
   });
@@ -234,6 +244,7 @@ export function registerRoutes(
     const rec = getOr404((req.params as { id: string }).id);
     await driverOf(rec).start(rec, ctxOf(rec));
     supervisor.noteManualState(rec.id, true);
+    track("server_started");
     return toSummary(rec);
   });
 
@@ -252,6 +263,7 @@ export function registerRoutes(
     presence.markAllOffline(rec.id);
     await driverOf(rec).start(rec, ctxOf(rec));
     supervisor.noteManualState(rec.id, true);
+    track("server_started");
     return toSummary(rec);
   });
 

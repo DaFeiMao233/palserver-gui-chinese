@@ -3,6 +3,7 @@ import path from "node:path";
 import type { KnownPlayer, PresenceEvent } from "@palserver/shared";
 import type { InstanceStore, InstanceRecord } from "./store.js";
 import { rest } from "./restapi.js";
+import { trackPlayers } from "./telemetry.js";
 
 /**
  * Tracks who is online by polling the game's REST API, and keeps a roster of
@@ -86,12 +87,14 @@ export class PresenceTracker {
     const now = new Date().toISOString();
     const data = this.read(rec.id);
     const onlineNow = new Set(players.map((p) => p.userId));
+    const joined: string[] = [];
 
     for (const p of players) {
       const existing = data.known[p.userId];
       if (!existing || !existing.online) {
         data.events.push({ at: now, type: "join", userId: p.userId, name: p.name });
         data.sessionStart[p.userId] = now;
+        joined.push(p.userId);
       }
       data.known[p.userId] = {
         userId: p.userId,
@@ -124,6 +127,8 @@ export class PresenceTracker {
 
     if (data.events.length > MAX_EVENTS) data.events = data.events.slice(-MAX_EVENTS);
     this.write(rec.id, data);
+    // 匿名玩家統計:只上報單向雜湊,用於全球不重複玩家計數(見 PRIVACY.md)。
+    if (joined.length) trackPlayers(joined);
   }
 
   /** Mark everyone offline — used when an instance stops, so the roster

@@ -31,5 +31,12 @@ export const IMAGES: Record<"vanilla" | "modded", string> = {
   modded: process.env.PALSERVER_IMAGE_MODDED ?? "palserver/modded:latest",
 };
 
+/** 匿名使用統計收集端(見 PRIVACY.md);部署自己的 worker 後可用環境變數覆寫。 */
+export const STATS_URL =
+  process.env.PALSERVER_STATS_URL ?? "https://palserver-stats.iosoftware.workers.dev";
+
+/** 設 PALSERVER_TELEMETRY=0 強制停用匿名使用統計(優先於 GUI 內的開關)。 */
+export const TELEMETRY_DISABLED_BY_ENV = process.env.PALSERVER_TELEMETRY === "0";
+
 export const CONTAINER_PREFIX = "palserver-";
 export const INSTANCE_LABEL = "app.palserver.instance";

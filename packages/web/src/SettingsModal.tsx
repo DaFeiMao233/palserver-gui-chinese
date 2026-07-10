@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { FiX, FiCopy, FiCheck, FiRefreshCw, FiSmartphone, FiKey, FiWifi, FiTrash2 } from "react-icons/fi";
-import type { AgentClient, Connection } from "./api";
+import type { AgentClient, Connection, TelemetryStatus } from "./api";
 import { copyText } from "./clipboard";
+import { PrivacyModal } from "./PrivacyModal";
 import { Overlay, card, btn, btnGhost } from "./ui";
 
 /**
@@ -22,10 +23,13 @@ export function SettingsModal({
   const [addrs, setAddrs] = useState<{ ip: string; tailscale: boolean }[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [showToken, setShowToken] = useState(false);
+  const [telemetry, setTelemetry] = useState<TelemetryStatus | null>(null);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   useEffect(() => {
     client.pairingCode().then((r) => setCode(r.pairingCode)).catch(() => setCode(null));
     client.agentAddresses().then((r) => setAddrs(r.addresses)).catch(() => setAddrs([]));
+    client.telemetry().then(setTelemetry).catch(() => setTelemetry(null));
   }, [client]);
 
   // 用自己連進來的網址推得 scheme 與 port,組給其他裝置的登入連結。
@@ -148,6 +152,42 @@ export function SettingsModal({
               </p>
             ))}
         </div>
+
+        {/* 匿名使用統計 */}
+        {telemetry && (
+          <div className="border-t border-line pt-3">
+            <h3 className="text-sm font-extrabold">匿名使用統計</h3>
+            <p className="mt-1 text-xs text-ink-muted">
+              回報匿名的使用計數(安裝數、伺服器建立/啟動數、不重複玩家數),幫助我們了解使用規模。
+              <b className="text-ink">不含任何個資、IP、伺服器名稱或存檔內容</b>,詳見
+              <button className="underline underline-offset-2 hover:text-pal" onClick={() => setShowPrivacy(true)}>
+                隱私權政策
+              </button>
+              。
+            </p>
+            {telemetry.envDisabled ? (
+              <p className="mt-2 rounded-xl bg-card-soft px-3 py-2 text-xs text-ink-muted">
+                已由環境變數 <span className="font-mono">PALSERVER_TELEMETRY=0</span> 強制停用。
+              </p>
+            ) : (
+              <label className="mt-2 flex items-center gap-2 text-[13px] font-bold text-ink-muted">
+                <input
+                  type="checkbox"
+                  className="accent-(--color-pal)"
+                  checked={telemetry.enabled}
+                  onChange={(e) => {
+                    void client
+                      .setTelemetry(e.target.checked)
+                      .then(setTelemetry)
+                      .catch(() => {});
+                  }}
+                />
+                參與匿名使用統計
+              </label>
+            )}
+          </div>
+        )}
+        {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}
 
         {/* 清除暫存資料 */}
         <div className="border-t border-line pt-3">

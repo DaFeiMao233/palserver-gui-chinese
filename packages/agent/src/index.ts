@@ -25,6 +25,7 @@ import { fetchLatest } from "./version.js";
 import { nativeDriver } from "./native.js";
 import { dockerDriver } from "./docker.js";
 import { registerRoutes } from "./routes.js";
+import { announceBoot, trackPlayers } from "./telemetry.js";
 
 // 啟動流程包在 async main() 內,讓 entry 沒有頂層 await —— 這樣才能打包成
 // CommonJS 供 Node SEA 免安裝執行檔使用(頂層 await 只能輸出 ESM)。
@@ -102,6 +103,11 @@ void fetchLatest().catch(() => {});
 
 const presence = new PresenceTracker(store);
 presence.start();
+
+// 匿名使用統計(可關閉,見 PRIVACY.md):登記這次啟動,並把既有名冊上的玩家
+// 補進全球玩家統計(只送單向雜湊;telemetry 模組自己會去重)。
+announceBoot();
+trackPlayers(store.list().flatMap((rec) => presence.knownPlayers(rec.id).map((p) => p.userId)));
 
 const scheduler = new BackupScheduler(store, (rec) =>
   rec.backend === "native" ? nativeDriver : dockerDriver,

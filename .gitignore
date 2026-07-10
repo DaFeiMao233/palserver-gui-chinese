@@ -9,3 +9,6 @@ data/
 
 # v1 reference copy (its own repo: Dalufishe/palserver-GUI) — not part of v2
 deperated/
+
+# wrangler 本地開發狀態(packages/stats)
+.wrangler/

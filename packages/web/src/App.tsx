@@ -5,6 +5,7 @@ import type { InstanceSummary } from "@palserver/shared";
 import { AgentClient, loadConnection, saveConnection, type Connection } from "./api";
 import { InstanceDetailPage } from "./InstanceDetail";
 import { Mascot } from "./Mascot";
+import { AnnouncementPopup } from "./AnnouncementModal";
 import { Overlay, StatusBadge, btn, btnGhost, card, errorCls, inputCls, labelCls } from "./ui";
 
 export default function App() {
@@ -142,6 +143,7 @@ function Dashboard({ client, onOpen }: { client: AgentClient; onOpen: (id: strin
   return (
     <>
       <Mascot />
+      <AnnouncementPopup />
       {error && <p className={errorCls}>{error}</p>}
       <div className="flex items-center justify-between">
         <h2 className="my-3.5 text-[17px] font-extrabold">伺服器</h2>

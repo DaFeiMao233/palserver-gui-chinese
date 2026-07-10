@@ -50,44 +50,71 @@ export function Mascot() {
   );
 }
 
-/** Inline SVG belly-up orange tabby — self-contained, theme-neutral. */
+/**
+ * 內嵌 SVG:圓滾滾、四腳朝天的翻肚橘貓 —— 自給自足、深淺色主題都適用。
+ * 走 chibi 可愛路線(大頭、粉嫩肚肚、肉球、腮紅、瞇眼笑)。
+ */
 function CatBellyUp() {
+  const ORANGE = "#F4A64D";
+  const ORANGE_D = "#E08C30"; // 陰影/條紋
+  const CREAM = "#FBE3C6"; // 肚子/內耳/肉球
+  const INK = "#6B4423"; // 五官線條
+  const BLUSH = "#F6A7A0"; // 腮紅
   return (
-    <svg viewBox="0 0 300 220" className="h-auto w-full" aria-hidden>
-      {/* tail */}
+    <svg viewBox="0 0 320 240" className="h-auto w-full" aria-hidden>
+      {/* 尾巴 —— 從左側翹起、尾端上勾 */}
       <path
-        d="M40 150 Q0 140 10 105 Q18 80 45 92 Q30 110 48 128 Z"
-        fill="#E8913A"
+        d="M46 168 Q6 172 8 138 Q10 108 40 116 Q22 132 40 150 Q30 160 52 158 Z"
+        fill={ORANGE}
       />
-      {/* belly/body — lying on its back */}
-      <ellipse cx="160" cy="150" rx="105" ry="60" fill="#F2A550" />
-      <ellipse cx="165" cy="158" rx="78" ry="42" fill="#FBE0C0" />
-      {/* tabby stripes on the side */}
-      <path d="M70 130 q10 12 4 30" stroke="#D9822B" strokeWidth="6" fill="none" strokeLinecap="round" />
-      <path d="M92 122 q10 14 5 34" stroke="#D9822B" strokeWidth="6" fill="none" strokeLinecap="round" />
-      {/* four paws up */}
-      {[110, 150, 190, 226].map((x, i) => (
-        <g key={x}>
-          <rect x={x - 12} y={i % 2 ? 78 : 84} width="24" height="34" rx="12" fill="#F2A550" />
-          <ellipse cx={x} cy={i % 2 ? 80 : 86} rx="12" ry="9" fill="#FBE0C0" />
-        </g>
-      ))}
-      {/* head (tilted back) */}
+      <path d="M16 132 Q12 120 30 118" stroke={ORANGE_D} strokeWidth="5" fill="none" strokeLinecap="round" />
+
+      {/* 身體 —— 仰躺的大橢圓 */}
+      <ellipse cx="168" cy="166" rx="112" ry="60" fill={ORANGE} />
+      {/* 粉嫩肚肚 */}
+      <ellipse cx="176" cy="176" rx="82" ry="42" fill={CREAM} />
+      {/* 側身虎斑條紋 */}
+      <path d="M84 150 q8 16 2 34" stroke={ORANGE_D} strokeWidth="6" fill="none" strokeLinecap="round" />
+      <path d="M104 142 q9 18 3 38" stroke={ORANGE_D} strokeWidth="6" fill="none" strokeLinecap="round" />
+
+      {/* 四隻短腳朝天,附粉嫩肉球 */}
+      {[118, 158, 198, 236].map((x, i) => {
+        const top = i % 2 ? 96 : 104;
+        return (
+          <g key={x}>
+            <rect x={x - 13} y={top} width="26" height="40" rx="13" fill={ORANGE} />
+            <ellipse cx={x} cy={top + 6} rx="11" ry="8.5" fill={CREAM} />
+            {/* 肉球:一大三小 */}
+            <ellipse cx={x} cy={top + 8} rx="4.5" ry="3.6" fill={BLUSH} />
+            <circle cx={x - 6} cy={top + 1} r="2" fill={BLUSH} />
+            <circle cx={x} cy={top - 1} r="2" fill={BLUSH} />
+            <circle cx={x + 6} cy={top + 1} r="2" fill={BLUSH} />
+          </g>
+        );
+      })}
+
+      {/* 頭 —— 往後仰在右側 */}
       <g>
-        <ellipse cx="248" cy="150" rx="42" ry="40" fill="#F2A550" />
-        {/* ears */}
-        <path d="M222 122 l-6 -26 l24 12 Z" fill="#F2A550" />
-        <path d="M274 122 l10 -24 l-22 16 Z" fill="#F2A550" />
-        <path d="M224 118 l-2 -13 l12 7 Z" fill="#FBE0C0" />
-        <path d="M272 118 l6 -12 l-12 9 Z" fill="#FBE0C0" />
-        {/* happy closed eyes */}
-        <path d="M232 150 q6 6 12 0" stroke="#5A3B1E" strokeWidth="3.5" fill="none" strokeLinecap="round" />
-        <path d="M256 150 q6 6 12 0" stroke="#5A3B1E" strokeWidth="3.5" fill="none" strokeLinecap="round" />
-        {/* nose + mouth */}
-        <path d="M248 158 l-4 5 h8 Z" fill="#C96A4A" />
-        <path d="M248 163 q-5 6 -11 3 M248 163 q5 6 11 3" stroke="#5A3B1E" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        {/* whiskers */}
-        <path d="M228 156 h-20 M230 162 h-20 M268 156 h20 M266 162 h20" stroke="#D9822B" strokeWidth="2" strokeLinecap="round" />
+        {/* 耳朵 */}
+        <path d="M236 138 l-8 -30 l30 16 Z" fill={ORANGE} />
+        <path d="M292 138 l14 -28 l-28 20 Z" fill={ORANGE} />
+        <path d="M240 132 l-3 -15 l15 9 Z" fill={CREAM} />
+        <path d="M290 132 l8 -14 l-15 11 Z" fill={CREAM} />
+        {/* 圓臉 */}
+        <ellipse cx="268" cy="164" rx="46" ry="43" fill={ORANGE} />
+        {/* 頭頂虎斑 */}
+        <path d="M262 128 v10 M272 128 v10" stroke={ORANGE_D} strokeWidth="4" strokeLinecap="round" />
+        {/* 腮紅 */}
+        <ellipse cx="240" cy="172" rx="9" ry="6" fill={BLUSH} opacity="0.75" />
+        <ellipse cx="296" cy="172" rx="9" ry="6" fill={BLUSH} opacity="0.75" />
+        {/* 瞇眼笑 */}
+        <path d="M248 162 q7 7 14 0" stroke={INK} strokeWidth="3.6" fill="none" strokeLinecap="round" />
+        <path d="M274 162 q7 7 14 0" stroke={INK} strokeWidth="3.6" fill="none" strokeLinecap="round" />
+        {/* 鼻子 + 嘴 */}
+        <path d="M268 172 l-5 5.5 h10 Z" fill="#D08A6A" />
+        <path d="M268 177.5 q-6 7 -13 3 M268 177.5 q6 7 13 3" stroke={INK} strokeWidth="2.6" fill="none" strokeLinecap="round" />
+        {/* 鬍鬚 */}
+        <path d="M244 168 h-22 M246 175 h-22 M292 168 h22 M290 175 h22" stroke={ORANGE_D} strokeWidth="2" strokeLinecap="round" opacity="0.8" />
       </g>
     </svg>
   );

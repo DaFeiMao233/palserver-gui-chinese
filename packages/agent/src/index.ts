@@ -8,7 +8,7 @@ import cors from "@fastify/cors";
 import websocket from "@fastify/websocket";
 import fastifyStatic from "@fastify/static";
 import { ZodError } from "zod";
-import { DATA_DIR, HOST, PORT, AGENT_VERSION, REQUIRE_TOKEN } from "./env.js";
+import { DATA_DIR, HOST, PORT, AGENT_VERSION, REQUIRE_TOKEN, WEB_ORIGINS, TLS_ENABLED } from "./env.js";
 import {
   loadOrCreateToken,
   loadOrCreatePairingCode,
@@ -16,6 +16,7 @@ import {
   isLoopback,
   type AuthContext,
 } from "./auth.js";
+import { loadOrCreateTlsCert } from "./tls.js";
 import { InstanceStore } from "./store.js";
 import { PresenceTracker } from "./presence.js";
 import { BackupScheduler } from "./backup-scheduler.js";
@@ -25,7 +26,13 @@ import { nativeDriver } from "./native.js";
 import { dockerDriver } from "./docker.js";
 import { registerRoutes } from "./routes.js";
 
-const app = Fastify({ logger: true, bodyLimit: 1024 * 1024 * 1024 });
+const tls = TLS_ENABLED ? await loadOrCreateTlsCert() : null;
+const scheme = tls ? "https" : "http";
+const app = Fastify({
+  logger: true,
+  bodyLimit: 1024 * 1024 * 1024,
+  ...(tls ? { https: { key: tls.key, cert: tls.cert } } : {}),
+});
 const token = loadOrCreateToken();
 const pairingCode = loadOrCreatePairingCode();
 const auth: AuthContext = { token, pairingCode, requireToken: REQUIRE_TOKEN };
@@ -35,7 +42,22 @@ const store = new InstanceStore();
 // raw request through instead of buffering it into a body.
 app.addContentTypeParser("application/octet-stream", (_req, _payload, done) => done(null, undefined));
 
-await app.register(cors, { origin: true });
+// CORS 白名單:同源(合一版,通常不送 Origin)、本機各埠(含 dev server)、以及
+// 設定允許的公開 web 站。跨源資料仍受 token/loopback 保護,收緊再擋一層。
+await app.register(cors, {
+  origin(origin, cb) {
+    if (!origin) return cb(null, true); // same-origin / 非瀏覽器 / 原生 app
+    let host = "";
+    try {
+      host = new URL(origin).hostname;
+    } catch {
+      return cb(null, false);
+    }
+    if (host === "localhost" || host === "127.0.0.1" || host === "::1") return cb(null, true);
+    if (WEB_ORIGINS.includes(origin)) return cb(null, true);
+    cb(null, false);
+  },
+});
 await app.register(websocket);
 
 // Serve the built web UI when present (packages/web/dist copied or resolved in-repo).
@@ -44,7 +66,14 @@ const webDist = path.resolve(
   "../../web/dist",
 );
 if (fs.existsSync(webDist)) {
-  await app.register(fastifyStatic, { root: webDist });
+  await app.register(fastifyStatic, {
+    root: webDist,
+    // index.html 不可快取,agent 更新後玩家瀏覽器才會立刻拿到新前端;
+    // vite 產出的 JS/CSS 檔名帶雜湊,可交給瀏覽器長快取(靠 etag 重新驗證)。
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".html")) res.setHeader("Cache-Control", "no-cache");
+    },
+  });
 }
 
 app.setErrorHandler((err: Error & { statusCode?: number }, _req, reply) => {
@@ -89,7 +118,7 @@ registerRoutes(app, store, presence, scheduler, supervisor, auth);
 await app.listen({ host: HOST, port: PORT });
 
 app.log.info(`palserver-agent v${AGENT_VERSION} · data dir: ${DATA_DIR}`);
-printStartupBanner(PORT, pairingCode, token);
+printStartupBanner(scheme, PORT, pairingCode, token);
 
 /** 收集本機各網卡的 IPv4,標出可能是 Tailscale(100.64.0.0/10)的位址。 */
 function localAddresses(): { ip: string; tailscale: boolean }[] {
@@ -106,7 +135,7 @@ function localAddresses(): { ip: string; tailscale: boolean }[] {
 }
 
 /** 玩家友善的啟動說明:本機直連、區網/VPN 位址、以及邀請朋友的一次性設定連結。 */
-function printStartupBanner(port: number, code: string, apiToken: string): void {
+function printStartupBanner(proto: string, port: number, code: string, apiToken: string): void {
   const addrs = localAddresses();
   const remote = addrs[0]; // 優先 Tailscale/VPN,否則第一個區網位址
   const L = (s = "") => process.stdout.write(s + "\n");
@@ -115,22 +144,23 @@ function printStartupBanner(port: number, code: string, apiToken: string): void 
   L("  │  palserver GUI agent 已啟動 🐾");
   L("  │");
   L(`  │  本機管理(免密碼,直接打開):`);
-  L(`  │      http://localhost:${port}`);
+  L(`  │      ${proto}://localhost:${port}`);
   if (addrs.length) {
     L("  │");
     L("  │  同一區網 / VPN 的裝置可連:");
-    for (const a of addrs) L(`  │      http://${a.ip}:${port}${a.tailscale ? "   (Tailscale)" : ""}`);
+    for (const a of addrs) L(`  │      ${proto}://${a.ip}:${port}${a.tailscale ? "   (Tailscale)" : ""}`);
   }
   L("  │");
   L("  │  邀請朋友遠端連線 —— 把這條連結傳給他:");
   if (remote) {
-    L(`  │      http://${remote.ip}:${port}/?setup=${code}`);
+    L(`  │      ${proto}://${remote.ip}:${port}/?setup=${code}`);
   } else {
     L(`  │      (先連上 VPN 取得對外位址)，配對碼:${code}`);
   }
   L(`  │  或請對方在網頁輸入配對碼:${code}`);
   L("  │");
   L(`  │  進階/自動化用的 API token:${apiToken}`);
+  if (proto === "https") L("  │  (自簽憑證:瀏覽器會跳安全警告,選「繼續前往」即可)");
   L("  └───────────────────────────────────────────────");
   L();
 }

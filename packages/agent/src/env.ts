@@ -13,6 +13,18 @@ export const HOST = process.env.PALSERVER_AGENT_HOST ?? "0.0.0.0";
 /** 預設連本機(loopback)免 token;多使用者主機設 =1 強制一律要 token。 */
 export const REQUIRE_TOKEN = process.env.PALSERVER_REQUIRE_TOKEN === "1";
 
+/**
+ * 允許跨源連線的網站來源(逗號分隔)。同源(合一版)與本機各埠一律允許,不必列;
+ * 這裡是給「純 web 公開站」用的,例如 https://palserver-gui.example.com。
+ */
+export const WEB_ORIGINS = (process.env.PALSERVER_WEB_ORIGINS ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+/** 設 =1 以 HTTPS 監聽(自簽憑證自動生成於 data-dir/tls,或放自己的憑證進去)。 */
+export const TLS_ENABLED = process.env.PALSERVER_TLS === "1";
+
 /** Docker images used for each flavor; override to pin versions or use a registry. */
 export const IMAGES: Record<"vanilla" | "modded", string> = {
   vanilla: process.env.PALSERVER_IMAGE_VANILLA ?? "palserver/vanilla:latest",

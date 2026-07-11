@@ -55,6 +55,12 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "logs", label: "日誌" },
 ];
 
+/** 手動停止/重啟時,先在遊戲聊天室倒數幾秒再執行。倒數期間每秒更新 UI,並在這些
+ * 剩餘秒數時發一則廣播(頭尾密一點,中段疏一點)。 */
+const COUNTDOWN_SECONDS = 15;
+const ANNOUNCE_AT = new Set([10, 5, 3, 2, 1]); // 起始秒數會先發一則以偵測 REST 是否可用
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export function InstanceDetailPage({
   client,
   instanceId,
@@ -73,6 +79,8 @@ export function InstanceDetailPage({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [palDefender, setPalDefender] = useState(false);
+  // 非 null 時代表正在倒數(數字為剩餘秒數),用來鎖按鈕與顯示提示。
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -99,10 +107,37 @@ export function InstanceDetailPage({
 
   const act = async (action: "start" | "stop" | "restart") => {
     try {
+      // 手動停止/重啟且伺服器在跑時,先在遊戲聊天室倒數 15 秒公告(用 GUI 介面語言),
+      // 給玩家反應時間,再真的執行。廣播走伺服器 REST;REST 沒開就跳過倒數直接執行。
+      if ((action === "stop" || action === "restart") && detail?.status === "running") {
+        const announce = (n: number) =>
+          client.announce(
+            instanceId,
+            action === "stop"
+              ? t("伺服器將在 {n} 秒後停止", { n })
+              : t("伺服器將在 {n} 秒後重新啟動", { n }),
+          );
+        let announced = false;
+        try {
+          await announce(COUNTDOWN_SECONDS); // 先發第一則,順便確認 REST 可用
+          announced = true;
+        } catch {
+          /* REST 未啟用 — 無法公告,直接執行 */
+        }
+        if (announced) {
+          for (let n = COUNTDOWN_SECONDS; n >= 1; n--) {
+            setCountdown(n);
+            if (ANNOUNCE_AT.has(n)) await announce(n).catch(() => {});
+            await sleep(1000);
+          }
+        }
+      }
       await client.action(instanceId, action);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCountdown(null);
     }
   };
 
@@ -142,16 +177,24 @@ export function InstanceDetailPage({
             <button
               className={`${btn} inline-flex items-center gap-1.5`}
               onClick={() => act("start")}
-              disabled={detail.status === "installing"}
+              disabled={detail.status === "installing" || countdown !== null}
             >
               <FiPlay className="size-4" /> {detail.status === "installing" ? t("安裝中…") : t("啟動")}
             </button>
           ) : (
-            <button className={`${btn} inline-flex items-center gap-1.5`} onClick={() => act("stop")}>
+            <button
+              className={`${btn} inline-flex items-center gap-1.5`}
+              onClick={() => act("stop")}
+              disabled={countdown !== null}
+            >
               <FiSquare className="size-4" /> {t("停止")}
             </button>
           )}
-          <button className={`${btnGhost} inline-flex items-center gap-1.5`} onClick={() => act("restart")}>
+          <button
+            className={`${btnGhost} inline-flex items-center gap-1.5`}
+            onClick={() => act("restart")}
+            disabled={countdown !== null}
+          >
             <FiRefreshCw className="size-4" /> {t("重啟")}
           </button>
           <button
@@ -164,6 +207,12 @@ export function InstanceDetailPage({
           </button>
         </div>
       </div>
+
+      {countdown !== null && (
+        <p className="rounded-xl bg-sun/15 px-3 py-2 text-[13px] font-bold text-sun">
+          {t("已在遊戲聊天室公告,{n} 秒後執行…", { n: countdown })}
+        </p>
+      )}
 
       {showConsole && (
         <Overlay onClose={() => setShowConsole(false)}>

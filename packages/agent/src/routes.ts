@@ -262,6 +262,7 @@ export function registerRoutes(
       backend: input.backend,
       flavor: input.flavor,
       gamePort: input.gamePort,
+      queryPort: store.nextQueryPort(),
       serverDir,
       serverDirManaged,
       settings,
@@ -463,7 +464,14 @@ export function registerRoutes(
 
     const settings = WorldSettingsSchema.parse({ ...rec.settings, ServerName: name, PublicPort: gamePort });
     // 新實例一律 agent 管理(不共用來源的外部安裝目錄)。
-    const created = store.create({ name, backend: "native", flavor: rec.flavor, gamePort, settings });
+    const created = store.create({
+      name,
+      backend: "native",
+      flavor: rec.flavor,
+      gamePort,
+      queryPort: store.nextQueryPort(),
+      settings,
+    });
     try {
       saves.copyPortableData(serverRoot(rec, ctxOf(rec)), serverRoot(created, ctxOf(created)));
     } catch (err) {

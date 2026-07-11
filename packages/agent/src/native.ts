@@ -299,6 +299,52 @@ function writeIni(rec: InstanceRecord, ctx: DriverContext): void {
   const configDir = path.join(serverRoot(rec, ctx), "Pal", "Saved", "Config", CONFIG_PLATFORM_DIR);
   fs.mkdirSync(configDir, { recursive: true });
   fs.writeFileSync(path.join(configDir, "PalWorldSettings.ini"), renderPalWorldSettingsIni(rec.settings));
+  writeQueryPortEngineIni(configDir, rec.queryPort);
+}
+
+/**
+ * 把唯一的 Steam 查詢埠寫進 Engine.ini 的 [OnlineSubsystemSteam] GameServerQueryPort。
+ * 這是命令列 -queryport 之外的第二道保險(有些版本只認 ini)。就地合併:只動這個 key,
+ * 保留使用者/引擎分頁寫的其他區塊與設定,不覆蓋整份檔案。
+ */
+function writeQueryPortEngineIni(configDir: string, queryPort: number | undefined): void {
+  if (!queryPort) return;
+  const file = path.join(configDir, "Engine.ini");
+  let raw = "";
+  try {
+    raw = fs.readFileSync(file, "utf8");
+  } catch {
+    // Engine.ini 尚未存在,從空白建立。
+  }
+  fs.writeFileSync(file, setIniKey(raw, "OnlineSubsystemSteam", "GameServerQueryPort", String(queryPort)));
+}
+
+/** 在指定 [section] 底下設定 key=value:key 已存在就替換該行,section 存在就插入其下,
+ * 都沒有就把整個區塊補到檔尾。刻意不解析成物件,以免破壞其他區塊的排版與註解。 */
+function setIniKey(raw: string, section: string, key: string, value: string): string {
+  const lines = raw.split(/\r?\n/);
+  const header = `[${section}]`;
+  const keyRe = new RegExp(`^\\s*${key}\\s*=`, "i");
+  let sectionAt = -1;
+  let inSection = false;
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (/^\[.+\]$/.test(trimmed)) {
+      inSection = trimmed === header;
+      if (inSection) sectionAt = i;
+      continue;
+    }
+    if (inSection && keyRe.test(lines[i])) {
+      lines[i] = `${key}=${value}`;
+      return lines.join("\n");
+    }
+  }
+  if (sectionAt >= 0) {
+    lines.splice(sectionAt + 1, 0, `${key}=${value}`);
+    return lines.join("\n");
+  }
+  const prefix = raw.trim() ? `${raw.replace(/\s*$/, "")}\n\n` : "";
+  return `${prefix}[${section}]\n${key}=${value}\n`;
 }
 
 /** Instances with a server download in flight (install/update runs in the
@@ -424,7 +470,12 @@ async function spawnServer(rec: InstanceRecord, ctx: DriverContext): Promise<voi
   const out = fs.openSync(logFile(ctx), "a");
   const child = spawn(
     launcher,
-    [`-port=${rec.gamePort}`, "-publiclobby"],
+    [
+      `-port=${rec.gamePort}`,
+      // 每台唯一的 Steam 查詢埠;不帶的話全部搶 27015,第二台就死在 ::bind。
+      ...(rec.queryPort ? [`-queryport=${rec.queryPort}`] : []),
+      "-publiclobby",
+    ],
     {
       cwd: serverRoot(rec, ctx),
       detached: true, // survives agent restarts; we track it via the pid file

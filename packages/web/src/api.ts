@@ -25,6 +25,7 @@ import type {
   ModsStatus,
   PalDefenderConfig,
   PalDefenderConfigStatus,
+  PdPlayerList,
   PdRestStatus,
   PlayerDetail,
   PresenceEvent,
@@ -330,6 +331,11 @@ export class AgentClient {
 
   saveWorld(id: string): Promise<{ saved: boolean }> {
     return this.request(`/api/instances/${id}/save`, { method: "POST", body: "{}" });
+  }
+
+  /** PalDefender 統一玩家名冊(含離線,需 1.8+)。 */
+  palDefenderPlayers(id: string): Promise<PdPlayerList> {
+    return this.request(`/api/instances/${id}/paldefender-players`);
   }
 
   palDefenderRest(id: string): Promise<PdRestStatus> {

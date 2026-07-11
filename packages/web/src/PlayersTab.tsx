@@ -40,6 +40,7 @@ import {
   type ModerationLists,
   type PresenceEvent,
   type RestPlayer,
+  type PdPlayerList,
 } from "@palserver/shared";
 import type { AgentClient } from "./api";
 import { t, useI18n } from "./i18n";
@@ -160,6 +161,7 @@ export function PlayersTab({ client, instanceId }: { client: AgentClient; instan
           gameData={gameData}
           onOpen={(id, label) => setDetailFor({ id, label })}
         />
+        <PdPlayersCard client={client} instanceId={instanceId} onOpen={(id, label) => setDetailFor({ id, label })} />
         <PresenceTimeline events={events} />
         {detailFor && (
           <PlayerDetailModal
@@ -310,6 +312,7 @@ export function PlayersTab({ client, instanceId }: { client: AgentClient; instan
         gameData={gameData}
         onOpen={(id, label) => setDetailFor({ id, label })}
       />
+        <PdPlayersCard client={client} instanceId={instanceId} onOpen={(id, label) => setDetailFor({ id, label })} />
       <ModerationCard
         moderation={moderation}
         busy={busy}
@@ -341,6 +344,61 @@ const fmtPlaytime = (seconds: number) => {
 const fmtWhen = (iso: string) => new Date(iso).toLocaleString();
 
 /** Everyone the agent has ever seen here — the roster that outlives logouts. */
+/** PalDefender 統一玩家名冊(含離線,需 1.8+)。存檔內所有玩家,點任一位查看詳情。 */
+function PdPlayersCard({
+  client,
+  instanceId,
+  onOpen,
+}: {
+  client: AgentClient;
+  instanceId: string;
+  onOpen: (id: string, label: string) => void;
+}) {
+  const [list, setList] = useState<PdPlayerList | null>(null);
+  useEffect(() => {
+    client.palDefenderPlayers(instanceId).then(setList).catch(() => setList(null));
+  }, [client, instanceId]);
+  // 沒裝 PalDefender / REST 未啟用 / 版本過舊沒資料就不顯示,免得多一張空卡片。
+  if (!list || !list.available || list.players.length === 0) return null;
+  return (
+    <div className={`${card} p-0`}>
+      <h3 className="border-b-2 border-line px-5 py-3 text-sm font-extrabold text-ink-muted">
+        {t("PalDefender 玩家名冊(含離線)")}({list.totalCount})
+      </h3>
+      <div className="flex flex-col divide-y divide-line">
+        {list.players.map((p) => (
+          <button
+            key={p.userId || p.playerUid}
+            className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 text-left transition hover:bg-card-soft"
+            onClick={() => onOpen(p.userId, p.name)}
+            title={t("查看帕魯與背包")}
+          >
+            <div className="min-w-40 flex-1">
+              <p className="flex flex-wrap items-center gap-2 text-sm font-extrabold">
+                {p.name || "—"}
+                {p.online ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border-[1.5px] border-grass/40 bg-grass/15 px-2 py-0.5 text-xs font-bold text-grass">
+                    <span className="size-1.5 rounded-full bg-current" /> {t("在線")}
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold text-ink-muted">{t("離線")}</span>
+                )}
+                {p.guildName && <span className="text-xs font-normal text-ink-muted">· {p.guildName}</span>}
+              </p>
+              <p className="mt-0.5">
+                <SteamId userId={p.userId} />
+              </p>
+            </div>
+          </button>
+        ))}
+      </div>
+      <p className="border-t-2 border-line px-5 py-2 text-xs text-ink-muted">
+        {t("由 PalDefender 提供:列出存檔內所有玩家(含從未被本 GUI 記錄過的離線玩家)。點任一位可查看帕魯、背包與進度。")}
+      </p>
+    </div>
+  );
+}
+
 function KnownPlayersCard({
   known,
   gameData,

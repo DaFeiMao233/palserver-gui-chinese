@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FiX, FiPackage, FiZap } from "react-icons/fi";
+import { FiX, FiCpu, FiPackage, FiTrendingUp, FiZap } from "react-icons/fi";
 import { GiShield } from "react-icons/gi";
 import type { PlayerDetail } from "@palserver/shared";
 import type { AgentClient } from "./api";
@@ -77,9 +77,22 @@ function DetailBody({ detail, gameData }: { detail: PlayerDetail; gameData: Game
         <Info label={t("名稱")} value={detail.name || "—"} />
         <Info label={t("公會")} value={detail.guildName || t("無")} />
         <Info label="UserId" value={detail.userId ? maskSteamId(detail.userId) : "—"} />
+        {detail.progression && <Info label={t("等級")} value={`Lv.${detail.progression.level}`} />}
         <Info label={t("隊伍帕魯")} value={String(detail.teamCount)} />
         <Info label={t("帕魯箱")} value={String(detail.palboxCount)} />
       </div>
+
+      {detail.progression && <Progression prog={detail.progression} />}
+      {detail.techs && (
+        <div>
+          <h3 className="mb-1 inline-flex items-center gap-1.5 text-sm font-extrabold text-ink-muted">
+            <FiCpu className="size-4 text-pal" /> {t("已解鎖科技")}
+          </h3>
+          <p className="text-[13px]">
+            {t("{n} / {total} 項", { n: detail.techs.unlockedCount, total: detail.techs.totalCount })}
+          </p>
+        </div>
+      )}
 
       {team.length > 0 && <PalGroup title={t("隊伍")} pals={team} gameData={gameData} />}
       {palbox.length > 0 && <PalGroup title={t("帕魯箱")} pals={palbox} gameData={gameData} />}
@@ -88,6 +101,30 @@ function DetailBody({ detail, gameData }: { detail: PlayerDetail; gameData: Game
       )}
 
       <ItemList items={detail.items} gameData={gameData} />
+    </div>
+  );
+}
+
+/** 進度概要:等級/經驗、科技點、頭目、捕捉(PalDefender /progression)。 */
+function Progression({ prog }: { prog: NonNullable<PlayerDetail["progression"]> }) {
+  const rows: [string, string][] = [
+    [t("經驗值"), prog.exp.toLocaleString()],
+    [t("未分配狀態點"), String(prog.unusedStatusPoints)],
+    [t("科技點數"), String(prog.technologyPoints)],
+    [t("古代科技點數"), String(prog.ancientTechnologyPoints)],
+    [t("擊敗頭目"), String(prog.bossesDefeated)],
+    [t("捕捉帕魯種類"), String(prog.palsCaptured)],
+  ];
+  return (
+    <div>
+      <h3 className="mb-2 inline-flex items-center gap-1.5 text-sm font-extrabold text-ink-muted">
+        <FiTrendingUp className="size-4 text-pal" /> {t("進度")}
+      </h3>
+      <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+        {rows.map(([k, v]) => (
+          <Info key={k} label={k} value={v} />
+        ))}
+      </div>
     </div>
   );
 }

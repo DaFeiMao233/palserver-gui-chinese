@@ -218,6 +218,50 @@ export interface PlayerDetail {
   teamCount: number;
   palboxCount: number;
   items: PdItemSlot[];
+  /** 已解鎖科技(PalDefender 1.8+ /techs);取不到時 null。 */
+  techs: PlayerTechs | null;
+  /** 進度概要(PalDefender 1.8+ /progression);取不到時 null。 */
+  progression: PlayerProgression | null;
+}
+
+/** 玩家已解鎖的科技(PalDefender /techs)。 */
+export interface PlayerTechs {
+  unlocked: string[];
+  unlockedCount: number;
+  totalCount: number;
+}
+
+/** 玩家進度概要(PalDefender /progression 擷取重點)。 */
+export interface PlayerProgression {
+  level: number;
+  exp: number;
+  unusedStatusPoints: number;
+  technologyPoints: number;
+  ancientTechnologyPoints: number;
+  /** 擊敗頭目總數 */
+  bossesDefeated: number;
+  /** 捕捉過的帕魯種類數(tribeCaptureCount) */
+  palsCaptured: number;
+}
+
+/** PalDefender /players 的一筆玩家(線上 + 離線的統一名冊)。 */
+export interface PdPlayerSummary {
+  name: string;
+  userId: string;
+  playerUid: string;
+  guildName: string;
+  /** Status 為 Online 時 true。 */
+  online: boolean;
+  ip: string;
+}
+
+/** PalDefender /players 回傳:存檔內所有玩家(含離線)。 */
+export interface PdPlayerList {
+  available: boolean;
+  reason?: string;
+  onlineCount: number;
+  totalCount: number;
+  players: PdPlayerSummary[];
 }
 
 /** Whether the agent can reach PalDefender's REST API for this instance. */

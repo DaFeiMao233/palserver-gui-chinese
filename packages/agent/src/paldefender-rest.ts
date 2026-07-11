@@ -1,7 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import type { PdPal, PdItemSlot, PdRestStatus, PlayerDetail } from "@palserver/shared";
+import type {
+  PdPal,
+  PdItemSlot,
+  PdPlayerList,
+  PdPlayerSummary,
+  PdRestStatus,
+  PlayerDetail,
+  PlayerProgression,
+  PlayerTechs,
+} from "@palserver/shared";
 import type { DriverContext } from "./driver.js";
 import type { InstanceRecord } from "./store.js";
 import { serverRoot } from "./native.js";
@@ -193,6 +202,97 @@ function collectItems(inventory: Record<string, unknown> | undefined): PdItemSlo
   return out;
 }
 
+/** 統一玩家名冊(PalDefender 1.8+ /players,含離線玩家)。 */
+export async function getPdPlayers(rec: InstanceRecord, ctx: DriverContext): Promise<PdPlayerList> {
+  const status = getPdRestStatus(rec, ctx);
+  if (!status.enabled) {
+    return { available: false, reason: status.reason, onlineCount: 0, totalCount: 0, players: [] };
+  }
+  const dir = pdDir(rec, ctx)!;
+  try {
+    const res = await pdFetch<{ Meta?: Record<string, unknown>; Players?: Record<string, unknown>[] }>(
+      rec,
+      dir,
+      "/players",
+    );
+    const players: PdPlayerSummary[] = (res.Players ?? []).map((raw) => {
+      const p = (raw ?? {}) as Record<string, unknown>;
+      return {
+        name: String(p.Name ?? ""),
+        userId: String(p.UserId ?? ""),
+        playerUid: String(p.PlayerUID ?? ""),
+        guildName: String(p.GuildName ?? ""),
+        online: String(p.Status ?? "").toLowerCase() === "online",
+        ip: String(p.IP ?? ""),
+      };
+    });
+    return {
+      available: true,
+      onlineCount: Number(res.Meta?.OnlineCount ?? players.filter((p) => p.online).length),
+      totalCount: Number(res.Meta?.PlayerCount ?? players.length),
+      players,
+    };
+  } catch (err) {
+    return {
+      available: false,
+      reason: err instanceof Error ? err.message : String(err),
+      onlineCount: 0,
+      totalCount: 0,
+      players: [],
+    };
+  }
+}
+
+/** 已解鎖科技(/techs);取不到就回 null,不擋玩家詳情主體。 */
+async function fetchTechs(rec: InstanceRecord, dir: string, identifier: string): Promise<PlayerTechs | null> {
+  try {
+    const res = await pdFetch<{ Meta?: Record<string, unknown>; Techs?: { Unlocked?: unknown[] } }>(
+      rec,
+      dir,
+      `/techs/${encodeURIComponent(identifier)}`,
+    );
+    return {
+      unlocked: (res.Techs?.Unlocked ?? []).map(String),
+      unlockedCount: Number(res.Meta?.UnlockedCount ?? (res.Techs?.Unlocked ?? []).length),
+      totalCount: Number(res.Meta?.TotalCount ?? 0),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** 進度概要(/progression);取不到就回 null。 */
+async function fetchProgression(
+  rec: InstanceRecord,
+  dir: string,
+  identifier: string,
+): Promise<PlayerProgression | null> {
+  try {
+    const res = await pdFetch<{ Progression?: Record<string, Record<string, unknown>> }>(
+      rec,
+      dir,
+      `/progression/${encodeURIComponent(identifier)}`,
+    );
+    const prog = res.Progression ?? {};
+    const player = prog.Player ?? {};
+    const currencies = prog.Currencies ?? {};
+    const bosses = prog.Bosses ?? {};
+    const captures = prog.Captures ?? {};
+    const countKeys = (o: unknown) => (o && typeof o === "object" ? Object.keys(o).length : 0);
+    return {
+      level: Number(player.level ?? 0),
+      exp: Number(player.exp ?? 0),
+      unusedStatusPoints: Number(player.unusedStatusPoints ?? 0),
+      technologyPoints: Number(currencies.technologyPoints ?? 0),
+      ancientTechnologyPoints: Number(currencies.ancientTechnologyPoints ?? 0),
+      bossesDefeated: Number(bosses.totalBossDefeatCount ?? 0),
+      palsCaptured: Number(captures.tribeCaptureCount ?? countKeys(captures.palCaptureCounts)),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function getPlayerDetail(
   rec: InstanceRecord,
   ctx: DriverContext,
@@ -211,15 +311,20 @@ export async function getPlayerDetail(
       teamCount: 0,
       palboxCount: 0,
       items: [],
+      techs: null,
+      progression: null,
     };
   }
   const dir = pdDir(rec, ctx)!;
 
   try {
-    const [player, palsRes, itemsRes] = await Promise.all([
+    // 科技/進度是加分項:單獨失敗(端點不存在/舊版)不該擋掉帕魯與背包,故用 best-effort。
+    const [player, palsRes, itemsRes, techs, progression] = await Promise.all([
       pdFetch<{ Player?: Record<string, unknown> }>(rec, dir, `/player/${encodeURIComponent(identifier)}`),
       pdFetch<{ Meta?: Record<string, unknown>; Pals?: Record<string, unknown> }>(rec, dir, `/pals/${encodeURIComponent(identifier)}`),
       pdFetch<{ Inventory?: Record<string, unknown> }>(rec, dir, `/items/${encodeURIComponent(identifier)}`),
+      fetchTechs(rec, dir, identifier),
+      fetchProgression(rec, dir, identifier),
     ]);
 
     const p = player.Player ?? {};
@@ -237,6 +342,8 @@ export async function getPlayerDetail(
       teamCount: Number(palsRes.Meta?.TeamCount ?? 0),
       palboxCount: Number(palsRes.Meta?.PalboxCount ?? 0),
       items: collectItems(itemsRes.Inventory as Record<string, unknown>),
+      techs,
+      progression,
     };
   } catch (err) {
     return {
@@ -250,6 +357,8 @@ export async function getPlayerDetail(
       teamCount: 0,
       palboxCount: 0,
       items: [],
+      techs: null,
+      progression: null,
     };
   }
 }

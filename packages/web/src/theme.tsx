@@ -65,8 +65,13 @@ export function applyThemeMode(mode: ThemeMode): void {
   else document.documentElement.dataset.theme = mode;
 }
 
-/** 套用並記住主題選擇(供設定頁的主題選擇器 / header 切換用)。 */
+/** 目前主題:跨元件共享的單一真相,避免 header 切換鈕與主題選擇器各持一份而不同步。 */
+let currentMode: ThemeMode = loadThemeMode();
+const modeListeners = new Set<(m: ThemeMode) => void>();
+
+/** 套用並記住主題選擇,並通知所有訂閱者(header 切換鈕、主題選擇器…)。 */
 export function setThemeMode(mode: ThemeMode): void {
+  currentMode = mode;
   applyThemeMode(mode);
   try {
     if (mode === "auto") localStorage.removeItem(KEY);
@@ -74,6 +79,20 @@ export function setThemeMode(mode: ThemeMode): void {
   } catch {
     /* 無痕模式存不進去就只作用這一次 */
   }
+  modeListeners.forEach((l) => l(mode));
+}
+
+/** 訂閱目前主題;任何地方 setThemeMode 後,用此 hook 的元件都會同步更新。 */
+export function useThemeMode(): ThemeMode {
+  const [m, setM] = useState<ThemeMode>(() => currentMode);
+  useEffect(() => {
+    modeListeners.add(setM);
+    setM(currentMode); // render 與 effect 之間若有變動,補一次
+    return () => {
+      modeListeners.delete(setM);
+    };
+  }, []);
+  return m;
 }
 
 /** 訂閱系統深淺色。 */
@@ -96,14 +115,10 @@ export function useSystemDark(): boolean {
  */
 export function ThemeToggle() {
   const { t } = useI18n();
-  const [mode, setMode] = useState<ThemeMode>(loadThemeMode);
+  const mode = useThemeMode();
   const systemDark = useSystemDark();
   const isDark = isThemeDark(mode, systemDark);
-  const toggle = () => {
-    const next = composeTheme(themeFamily(mode), !isDark);
-    setMode(next);
-    setThemeMode(next);
-  };
+  const toggle = () => setThemeMode(composeTheme(themeFamily(mode), !isDark));
   const Icon = isDark ? FiMoon : FiSun;
   const label = isDark ? t("深色模式") : t("淺色模式");
   return (

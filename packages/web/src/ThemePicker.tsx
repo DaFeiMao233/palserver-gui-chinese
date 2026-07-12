@@ -5,12 +5,11 @@ import { Overlay, card } from "./ui";
 import {
   composeTheme,
   isThemeDark,
-  loadThemeMode,
   setThemeMode,
   themeFamily,
   useSystemDark,
+  useThemeMode,
   type ThemeFamily,
-  type ThemeMode,
 } from "./theme";
 
 interface Swatch {
@@ -93,7 +92,7 @@ function MiniPreview({ s }: { s: Swatch }) {
 export function ThemePicker({ entitled, onClose }: { entitled: boolean; onClose: () => void }) {
   useI18n();
   const systemDark = useSystemDark();
-  const [mode, setMode] = useState<ThemeMode>(loadThemeMode);
+  const mode = useThemeMode();
   const [lockedHint, setLockedHint] = useState(false);
 
   const dark = isThemeDark(mode, systemDark);
@@ -104,20 +103,14 @@ export function ThemePicker({ entitled, onClose }: { entitled: boolean; onClose:
       setLockedHint(true);
       return;
     }
-    const next = composeTheme(family, dark);
-    setThemeMode(next);
-    setMode(next);
+    setThemeMode(composeTheme(family, dark));
   };
-  const setDark = (d: boolean) => {
-    const next = composeTheme(activeFamily, d);
-    setThemeMode(next);
-    setMode(next);
-  };
+  const setDark = (d: boolean) => setThemeMode(composeTheme(activeFamily, d));
 
   return (
     <Overlay onClose={onClose}>
       <div
-        className={`${card} flex w-[560px] max-w-full flex-col gap-4`}
+        className={`${card} flex w-140 max-w-full flex-col gap-4`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -157,7 +150,7 @@ export function ThemePicker({ entitled, onClose }: { entitled: boolean; onClose:
               <button
                 key={th.family}
                 onClick={() => apply(th.family, th.free)}
-                className={`relative flex flex-col gap-2 rounded-(--radius-cute) border-2 p-2.5 text-left transition ${
+                className={`relative flex flex-col gap-2 rounded-cute border-2 p-2.5 text-left transition ${
                   selected ? "border-pal shadow-(--shadow-cute)" : "border-line hover:border-pal/50"
                 } ${locked ? "opacity-75" : ""}`}
               >

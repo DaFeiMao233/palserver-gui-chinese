@@ -1,4 +1,4 @@
-export const locales = ['zh', 'zh-cn', 'en', 'ja'] as const;
+﻿export const locales = ['zh', 'zh-cn', 'en', 'ja'] as const;
 export type Locale = (typeof locales)[number];
 
 /** 默认语言:网站以简体中文为主。「/」会以浏览器语言使用对应语言。 */

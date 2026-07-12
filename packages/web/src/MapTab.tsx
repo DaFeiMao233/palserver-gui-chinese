@@ -62,8 +62,7 @@ const RAID_RADIUS = 70;
  * system). type → colour + i18n label key. */
 interface Landmark {
   type: string;
-  /** Name per interface language (from paldb's per-locale map data). */
-  name: { en: string; zh: string; ja: string };
+  name: { en: string; zh: string; "zh-cn": string; ja: string };
   x: number;
   y: number;
   lv?: number;

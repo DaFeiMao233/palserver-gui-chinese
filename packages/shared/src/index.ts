@@ -673,7 +673,7 @@ export function detectVpn(ip: string): string | null {
   const [a, b] = p.map(Number);
   if (Number.isNaN(a) || Number.isNaN(b)) return null;
   if (a === 100 && b >= 64 && b <= 127) return "Tailscale";
-  if (a === 26) return "Radmin VPN";
+  if (a === 26) return "Radmin";
   if (a === 25) return "Hamachi";
   return null;
 }

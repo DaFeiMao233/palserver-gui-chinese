@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FiX, FiCopy, FiCheck, FiRefreshCw, FiSmartphone, FiKey, FiWifi, FiTrash2, FiStar } from "react-icons/fi";
+import { FiX, FiCopy, FiCheck, FiRefreshCw, FiSmartphone, FiKey, FiWifi, FiTrash2, FiStar, FiEye, FiEyeOff } from "react-icons/fi";
 import type { LicenseStatus } from "@palserver/shared";
 import type { AgentClient, Connection, TelemetryStatus } from "./api";
 import { copyText } from "./clipboard";
@@ -131,7 +131,7 @@ export function SettingsModal({
 
           <div>
             <p className="mb-1 text-xs font-bold text-ink-muted">{t("配對碼")}</p>
-            <Copyable text={code ?? "…"} mono big />
+            <Copyable text={code ?? "…"} mono big secret />
           </div>
 
           {addrs && addrs.length > 0 ? (
@@ -190,7 +190,7 @@ export function SettingsModal({
         {SHOW_SPONSOR_FEATURES && lic && (
           <div className="border-t border-line pt-3">
             <h3 className="inline-flex items-center gap-1.5 text-sm font-extrabold">
-              <FiStar className="size-4 text-premium" /> {t("贊助者識別碼")}
+              <FiStar className="size-4 text-pal" /> {t("贊助者識別碼")}
             </h3>
             <p className="mt-1 text-xs text-ink-muted">
               {t("輸入贊助者識別碼即可搶先體驗先行版功能。一組識別碼只能綁定一台伺服器,這台的機器碼為")}{" "}
@@ -223,7 +223,7 @@ export function SettingsModal({
                   <label className="mt-1 flex items-center gap-2 text-[13px] font-bold text-ink-muted">
                     <input
                       type="checkbox"
-                      className="accent-premium"
+                      className="accent-pal"
                       checked={themeMode === "sponsor"}
                       onChange={(e) => {
                         const next: ThemeMode = e.target.checked ? "sponsor" : "auto";
@@ -231,8 +231,8 @@ export function SettingsModal({
                         setThemeModeLocal(next);
                       }}
                     />
-                    <FiStar className="size-3.5 text-premium" />
-                    {t("啟用贊助者專屬主題 Midnight Gold(金色 × 漸層)")}
+                    <FiStar className="size-3.5 text-pal" />
+                    {t("啟用贊助者專屬主題(黑金銀 × 漸層)")}
                   </label>
                 )}
               </div>
@@ -330,15 +330,28 @@ function licReason(t: (s: string) => string, reason: string | null): string {
   }
 }
 
-function Copyable({ text, mono, big }: { text: string; mono?: boolean; big?: boolean }) {
+function Copyable({
+  text,
+  mono,
+  big,
+  secret,
+}: {
+  text: string;
+  mono?: boolean;
+  big?: boolean;
+  /** 敏感值(如配對碼):預設模糊遮蔽,點眼睛才顯示;複製一律複製真值。 */
+  secret?: boolean;
+}) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
+  const [revealed, setRevealed] = useState(false);
   const copy = async () => {
     if (await copyText(text)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     }
   };
+  const hidden = secret && !revealed;
   return (
     <button
       onClick={copy}
@@ -347,12 +360,28 @@ function Copyable({ text, mono, big }: { text: string; mono?: boolean; big?: boo
         mono ? "font-mono" : ""
       } ${big ? "text-lg font-bold tracking-widest" : "text-sm"}`}
     >
-      <span className="truncate">{text}</span>
-      {copied ? (
-        <FiCheck className="size-4 shrink-0 text-grass" />
-      ) : (
-        <FiCopy className="size-4 shrink-0 text-ink-muted" />
-      )}
+      <span className={`truncate ${hidden ? "select-none blur-[6px]" : ""}`}>{text}</span>
+      <span className="flex shrink-0 items-center gap-2">
+        {secret && (
+          <span
+            role="button"
+            tabIndex={0}
+            title={hidden ? t("顯示") : t("隱藏")}
+            className="text-ink-muted transition hover:text-pal"
+            onClick={(e) => {
+              e.stopPropagation();
+              setRevealed((v) => !v);
+            }}
+          >
+            {hidden ? <FiEye className="size-4" /> : <FiEyeOff className="size-4" />}
+          </span>
+        )}
+        {copied ? (
+          <FiCheck className="size-4 text-grass" />
+        ) : (
+          <FiCopy className="size-4 text-ink-muted" />
+        )}
+      </span>
     </button>
   );
 }

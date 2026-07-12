@@ -69,7 +69,7 @@ export function PlayerActionsMenu({
                   }}
                 >
                   {a.customPalMode ? (
-                    <FiStar className="size-4 text-premium" />
+                    <FiStar className="size-4 text-pal" />
                   ) : (
                     <FiTerminal className="size-4 text-ink-muted" />
                   )}

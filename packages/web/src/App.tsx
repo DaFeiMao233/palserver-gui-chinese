@@ -64,7 +64,6 @@ function Shell({ conn, onDisconnect }: { conn: Connection; onDisconnect: () => v
           <h1 className="text-[22px] font-extrabold tracking-wide">palserver GUI</h1>
         </button>
         <div className="flex items-center gap-2.5">
-          <span className="hidden text-[13px] text-ink-muted sm:inline">{conn.url}</span>
           <LangSelect />
           <ThemeToggle />
           <a

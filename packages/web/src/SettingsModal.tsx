@@ -140,7 +140,7 @@ export function SettingsModal({
             <div>
               <p className="mb-1 text-xs font-bold text-ink-muted">{t("一鍵登入連結(複製給其他裝置打開)")}</p>
               <div className="flex items-center gap-2">
-                <Copyable text={linkFor(addrs[0].ip)} mono />
+                <Copyable text={linkFor(addrs[0].ip)} mono secret />
                 {addrs[0].vpn && (
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full border-[1.5px] border-pal/40 bg-pal/10 px-2 py-0.5 text-xs font-bold text-pal">
                     <FiWifi className="size-3" /> {addrs[0].vpn}

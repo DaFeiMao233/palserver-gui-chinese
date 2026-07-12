@@ -65,7 +65,7 @@ import {
   restoreConfigSnapshot,
 } from "./config-backup.js";
 import { getPalDefenderConfig, writePalDefenderConfig } from "./paldefender-config.js";
-import { getPlayerDetail, getPdPlayers, getPdGuilds, getPdGuild, getPdRestStatus, setPdRestEnabled, provisionPdToken } from "./paldefender-rest.js";
+import { getPlayerDetail, getPdPlayers, getPdGuilds, getPdGuild, getPdRestStatus, setPdRestEnabled, setPdRestPort, provisionPdToken } from "./paldefender-rest.js";
 import { setTelemetryEnabled, telemetryStatus, track } from "./telemetry.js";
 import { licenseStatus, setLicenseKey, clearLicenseKey, featureEnabled } from "./license.js";
 import { giveCustomPal } from "./pals.js";
@@ -179,9 +179,11 @@ export function registerRoutes(
       instanceCount: store.list().length,
       authenticated,
       platform: process.platform,
-      availableBackends: process.platform === "linux"
+      // docker:看 Docker 是否真的連得上(Docker Desktop 讓 macOS/Windows 也能跑),
+      // 而非以平台判斷;k8s:遙控叢集內的 StatefulSet,與 agent 這台的 OS 無關,一律提供。
+      availableBackends: dockerVersion !== "unavailable"
         ? ["native", "docker", "k8s"]
-        : ["native"],
+        : ["native", "k8s"],
     };
   });
 
@@ -359,6 +361,7 @@ export function registerRoutes(
       flavor: input.flavor,
       gamePort: input.gamePort,
       queryPort: store.nextQueryPort(),
+      dockerImage: input.backend === "docker" ? input.dockerImage?.trim() || undefined : undefined,
       serverDir,
       serverDirManaged,
       settings,
@@ -708,6 +711,13 @@ export function registerRoutes(
     const rec = getOr404((req.params as { id: string }).id);
     const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
     setPdRestEnabled(rec, ctxOf(rec), enabled);
+    return { ...getPdRestStatus(rec, ctxOf(rec)), applied: "on-next-restart" };
+  });
+
+  app.put("/api/instances/:id/paldefender-rest/port", async (req) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    const { port } = z.object({ port: z.number().int().min(1024).max(65535) }).parse(req.body);
+    setPdRestPort(rec, ctxOf(rec), port);
     return { ...getPdRestStatus(rec, ctxOf(rec)), applied: "on-next-restart" };
   });
 

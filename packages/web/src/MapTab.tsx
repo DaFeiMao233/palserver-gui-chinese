@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FiRefreshCw, FiMap, FiX, FiHome, FiUsers, FiStar, FiMoon, FiMapPin } from "react-icons/fi";
+import { FiRefreshCw, FiMap, FiX, FiHome, FiUsers, FiStar, FiMoon, FiMapPin, FiExternalLink } from "react-icons/fi";
 import * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -26,16 +26,18 @@ import { Overlay, btn, btnGhost, card, errorCls } from "./ui";
  * map-coordinate bounds the wiki's DataMaps publishes for that image, so the
  * whole thing is correct by construction.
  */
-const MAP_IMAGE = "/palpagos-world-map.webp";
+const MAP_IMAGE = "/palworld-full-map.jpg";
 
 /**
- * MAP_IMAGE is framed to the in-game map coordinate square: [-1000, 1000] on
- * both axes (the same system savToMap outputs and the REST/in-game coordinates
- * use). Verified empirically — two known-coordinate terrain points land within
- * ~0.0005 of the ±1000 prediction. CRS.Simple uses [lat,lng] = [mapY (north),
- * mapX (east)], so the image spans [[south, west], [north, east]]:
+ * Full world map (Palpagos + Sakurajima + Feybreak), stitched from palworld.gg's
+ * map tiles. It covers the game's full land-texture bounds, world
+ * X∈[-1099400, 349400], Y∈[-724400, 724400]. Converted through savToMap
+ * (mapX=(worldY-158000)/459, mapY=(worldX+123888)/459) that is, in our map coord
+ * system, mapX∈[-1922.44, 1233.99], mapY∈[-2125.30, 1031.13]. CRS.Simple uses
+ * [lat,lng] = [mapY (north), mapX (east)] → [[south, west], [north, east]].
+ * Verified: Mt Obsidian, the snow island and Sakurajima all land in-region.
  */
-const IMAGE_BOUNDS = L.latLngBounds([-1000, -1000], [1000, 1000]);
+const IMAGE_BOUNDS = L.latLngBounds([-2125.3, -1922.44], [1031.13, 1233.99]);
 
 const escapeHtml = (s: string) =>
   s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
@@ -67,10 +69,10 @@ interface Landmark {
   y: number;
   lv?: number;
 }
-const LANDMARK_STYLE: Record<string, { color: string; label: string }> = {
-  "Fast Travel": { color: "#33bccb", label: "快速旅行" },
-  Tower: { color: "#b07ce8", label: "頭目塔" },
-  Dungeon: { color: "#e0913f", label: "地牢" },
+const LANDMARK_STYLE: Record<string, { icon: string; size: number; label: string }> = {
+  "Fast Travel": { icon: "/game-data/landmark-icons/fasttravel.png", size: 26, label: "快速旅行" },
+  Tower: { icon: "/game-data/landmark-icons/tower.png", size: 30, label: "頭目塔" },
+  Dungeon: { icon: "/game-data/landmark-icons/dungeon.png", size: 22, label: "地牢" },
 };
 
 /** Same deterministic "random Pal" avatar as the player list (PlayerAvatar):
@@ -84,7 +86,16 @@ function avatarIconUrl(seed: string, gameData: GameData | null): string | null {
   return pal.icon ? palIconUrl(pal.icon) : null;
 }
 
-export function MapTab({ client, instanceId }: { client: AgentClient; instanceId: string }) {
+export function MapTab({
+  client,
+  instanceId,
+  fullscreen = false,
+}: {
+  client: AgentClient;
+  instanceId: string;
+  /** 全螢幕模式(/map 獨立頁):地圖直接鋪滿視窗,不套外殼、不需「開啟地圖」入口。 */
+  fullscreen?: boolean;
+}) {
   const { lang } = useI18n();
   const gameData = useGameData();
   const [live, setLive] = useState<LiveStatus | null>(null);
@@ -94,7 +105,7 @@ export function MapTab({ client, instanceId }: { client: AgentClient; instanceId
   const [guildDetailId, setGuildDetailId] = useState<string | null>(null);
   const [playerDetail, setPlayerDetail] = useState<{ id: string; label: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(fullscreen);
   const [showPlayers, setShowPlayers] = useState(true);
   const [showOffline, setShowOffline] = useState(false);
   const [showBases, setShowBases] = useState(true);
@@ -147,6 +158,153 @@ export function MapTab({ client, instanceId }: { client: AgentClient; instanceId
     ? t("在線玩家 {n} 人", { n: live.players.length }) + (baseCount > 0 ? ` · ${t("{n} 個公會據點", { n: baseCount })}` : "")
     : (live?.reason ?? t("伺服器未在運作,地圖無法顯示玩家。"));
 
+  // 地圖面板本體:彈窗與全螢幕頁共用。全螢幕時鋪滿容器、去掉卡片外框與關閉鈕。
+  const mapPanel = live?.available ? (
+    <div
+      className={
+        fullscreen
+          ? "flex h-full w-full flex-col gap-2 p-3"
+          : "flex h-[min(88vh,92vw)] w-[min(88vh,92vw)] max-w-full flex-col gap-2 rounded-(--radius-cute) border-2 border-line bg-card p-3 shadow-(--shadow-cute)"
+      }
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            className={`${btnGhost} inline-flex items-center gap-1.5 ${showPlayers ? "border-pal text-pal" : "opacity-60"}`}
+            onClick={() => setShowPlayers((v) => !v)}
+          >
+            <FiUsers className="size-4" /> {t("玩家")}
+          </button>
+          {offlineCount > 0 && (
+            <button
+              className={`${btnGhost} inline-flex items-center gap-1.5 ${showOffline ? "border-pal text-pal" : "opacity-60"}`}
+              onClick={() => setShowOffline((v) => !v)}
+            >
+              <FiMoon className="size-4" /> {t("離線玩家")}
+            </button>
+          )}
+          {landmarks.length > 0 &&
+            (guildsUnlocked ? (
+              <button
+                className={`${btnGhost} inline-flex items-center gap-1.5 ${showLandmarks ? "border-pal text-pal" : "opacity-60"}`}
+                onClick={() => setShowLandmarks((v) => !v)}
+              >
+                <FiMapPin className="size-4" /> {t("地標")}
+                <FiStar className="size-3.5 text-pal" />
+              </button>
+            ) : (
+              <button
+                className={`${btnGhost} inline-flex items-center gap-1.5 opacity-70`}
+                title={t("此功能為贊助者專屬功能,可在設定頁輸入贊助者識別碼解鎖。")}
+                onClick={() => setGuildHint((v) => !v)}
+              >
+                <FiMapPin className="size-4" /> {t("地標")}
+                <FiStar className="size-3.5 text-pal" />
+              </button>
+            ))}
+          {guildsUnlocked ? (
+            <button
+              className={`${btnGhost} inline-flex items-center gap-1.5 ${showBases ? "border-pal text-pal" : "opacity-60"}`}
+              onClick={() => setShowBases((v) => !v)}
+            >
+              <FiHome className="size-4" /> {t("公會據點")}
+              <FiStar className="size-3.5 text-pal" />
+            </button>
+          ) : (
+            <button
+              className={`${btnGhost} inline-flex items-center gap-1.5 opacity-70`}
+              title={t("公會據點是贊助者專屬功能,可在設定頁輸入贊助者識別碼解鎖。")}
+              onClick={() => setGuildHint((v) => !v)}
+            >
+              <FiHome className="size-4" /> {t("公會據點")}
+              <FiStar className="size-3.5 text-pal" />
+            </button>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {!fullscreen && (
+            <button
+              className={btnGhost}
+              onClick={() =>
+                window.open(`/map?instance=${encodeURIComponent(instanceId)}`, "_blank", "noopener")
+              }
+              aria-label={t("在新分頁開啟全螢幕地圖")}
+              title={t("在新分頁開啟全螢幕地圖")}
+            >
+              <FiExternalLink className="size-4" />
+            </button>
+          )}
+          <button className={btnGhost} onClick={refresh} aria-label={t("重新整理")}>
+            <FiRefreshCw className="size-4" />
+          </button>
+          {!fullscreen && (
+            <button className={`${btnGhost} inline-flex items-center gap-1.5`} onClick={() => setOpen(false)}>
+              <FiX className="size-4" /> {t("關閉")}
+            </button>
+          )}
+        </div>
+      </div>
+      {guildHint && !guildsUnlocked && (
+        <p className="rounded-xl bg-sun/15 px-3 py-2 text-[13px] font-bold text-sun">
+          {t("此功能為贊助者專屬功能,可在設定頁輸入贊助者識別碼解鎖。")}
+        </p>
+      )}
+      <div className="min-h-0 flex-1 overflow-hidden rounded-xl">
+        <PlayerMap
+          players={live.players}
+          guilds={guilds}
+          pdPlayers={pdPlayers}
+          landmarks={landmarks}
+          lang={lang}
+          showPlayers={showPlayers}
+          showOffline={showOffline}
+          showBases={showBases}
+          showLandmarks={showLandmarks}
+          gameData={gameData}
+          onGuildClick={setGuildDetailId}
+          onPlayerClick={(id, label) => setPlayerDetail({ id, label })}
+        />
+      </div>
+    </div>
+  ) : null;
+
+  const modals = (
+    <>
+      {guildDetailId && (
+        <GuildDetailModal
+          client={client}
+          instanceId={instanceId}
+          guildId={guildDetailId}
+          onClose={() => setGuildDetailId(null)}
+        />
+      )}
+      {playerDetail && (
+        <PlayerDetailModal
+          client={client}
+          instanceId={instanceId}
+          identifier={playerDetail.id}
+          displayLabel={playerDetail.label}
+          onClose={() => setPlayerDetail(null)}
+        />
+      )}
+    </>
+  );
+
+  if (fullscreen) {
+    return (
+      <div className="fixed inset-0 flex flex-col bg-bg">
+        {error && <p className={`${errorCls} m-3`}>{error}</p>}
+        {mapPanel ?? (
+          <div className="flex flex-1 items-center justify-center p-6 text-center text-ink-muted">
+            {summary}
+          </div>
+        )}
+        {modals}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-3">
       {error && <p className={errorCls}>{error}</p>}
@@ -168,107 +326,9 @@ export function MapTab({ client, instanceId }: { client: AgentClient; instanceId
         </button>
       </div>
 
-      {open && live?.available && (
-        <Overlay onClose={() => setOpen(false)}>
-          <div
-            className="flex h-[min(88vh,92vw)] w-[min(88vh,92vw)] max-w-full flex-col gap-2 rounded-(--radius-cute) border-2 border-line bg-card p-3 shadow-(--shadow-cute)"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  className={`${btnGhost} inline-flex items-center gap-1.5 ${showPlayers ? "border-pal text-pal" : "opacity-60"}`}
-                  onClick={() => setShowPlayers((v) => !v)}
-                >
-                  <FiUsers className="size-4" /> {t("玩家")}
-                </button>
-                {offlineCount > 0 && (
-                  <button
-                    className={`${btnGhost} inline-flex items-center gap-1.5 ${showOffline ? "border-pal text-pal" : "opacity-60"}`}
-                    onClick={() => setShowOffline((v) => !v)}
-                  >
-                    <FiMoon className="size-4" /> {t("離線玩家")}
-                  </button>
-                )}
-                {landmarks.length > 0 && (
-                  <button
-                    className={`${btnGhost} inline-flex items-center gap-1.5 ${showLandmarks ? "border-pal text-pal" : "opacity-60"}`}
-                    onClick={() => setShowLandmarks((v) => !v)}
-                  >
-                    <FiMapPin className="size-4" /> {t("地標")}
-                  </button>
-                )}
-                {guildsUnlocked ? (
-                  <button
-                    className={`${btnGhost} inline-flex items-center gap-1.5 ${showBases ? "border-pal text-pal" : "opacity-60"}`}
-                    onClick={() => setShowBases((v) => !v)}
-                  >
-                    <FiHome className="size-4" /> {t("公會據點")}
-                    <FiStar className="size-3.5 text-pal" />
-                  </button>
-                ) : (
-                  <button
-                    className={`${btnGhost} inline-flex items-center gap-1.5 opacity-70`}
-                    title={t("公會據點是贊助者專屬功能,可在設定頁輸入贊助者識別碼解鎖。")}
-                    onClick={() => setGuildHint((v) => !v)}
-                  >
-                    <FiHome className="size-4" /> {t("公會據點")}
-                    <FiStar className="size-3.5 text-pal" />
-                  </button>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <button className={btnGhost} onClick={refresh} aria-label={t("重新整理")}>
-                  <FiRefreshCw className="size-4" />
-                </button>
-                <button className={`${btnGhost} inline-flex items-center gap-1.5`} onClick={() => setOpen(false)}>
-                  <FiX className="size-4" /> {t("關閉")}
-                </button>
-              </div>
-            </div>
-            {guildHint && !guildsUnlocked && (
-              <p className="rounded-xl bg-sun/15 px-3 py-2 text-[13px] font-bold text-sun">
-                {t("公會據點是贊助者專屬功能,可在設定頁輸入贊助者識別碼解鎖。")}
-              </p>
-            )}
-            <div className="min-h-0 flex-1 overflow-hidden rounded-xl">
-              <PlayerMap
-                players={live.players}
-                guilds={guilds}
-                pdPlayers={pdPlayers}
-                landmarks={landmarks}
-                lang={lang}
-                showPlayers={showPlayers}
-                showOffline={showOffline}
-                showBases={showBases}
-                showLandmarks={showLandmarks}
-                gameData={gameData}
-                onGuildClick={setGuildDetailId}
-                onPlayerClick={(id, label) => setPlayerDetail({ id, label })}
-              />
-            </div>
-          </div>
-        </Overlay>
-      )}
+      {open && mapPanel && <Overlay onClose={() => setOpen(false)}>{mapPanel}</Overlay>}
 
-      {guildDetailId && (
-        <GuildDetailModal
-          client={client}
-          instanceId={instanceId}
-          guildId={guildDetailId}
-          onClose={() => setGuildDetailId(null)}
-        />
-      )}
-
-      {playerDetail && (
-        <PlayerDetailModal
-          client={client}
-          instanceId={instanceId}
-          identifier={playerDetail.id}
-          displayLabel={playerDetail.label}
-          onClose={() => setPlayerDetail(null)}
-        />
-      )}
+      {modals}
     </div>
   );
 }
@@ -427,7 +487,7 @@ function PlayerMap({
       crs: L.CRS.Simple,
       attributionControl: false,
       zoomSnap: 0.25,
-      maxZoom: 3,
+      maxZoom: 4,
     });
     map.setView(IMAGE_BOUNDS.getCenter(), -2); // provisional view; applySize refits properly
     el.style.background = "transparent"; // let the card bg show past the image instead of Leaflet's grey
@@ -501,18 +561,19 @@ function PlayerMap({
       return null;
     };
 
-    // Static landmarks (fast travel / towers / dungeons) as the bottom layer.
+    // Static landmarks (fast travel / towers / dungeons) as the bottom layer,
+    // each with its own game compass icon.
     if (showLandmarks) {
       for (const lm of landmarks) {
         const style = LANDMARK_STYLE[lm.type];
         if (!style) continue;
-        L.circleMarker([lm.y, lm.x], {
-          radius: 4,
-          weight: 1.5,
-          color: "#ffffff",
-          fillColor: style.color,
-          fillOpacity: 0.9,
-        })
+        const icon = L.icon({
+          iconUrl: style.icon,
+          iconSize: [style.size, style.size],
+          iconAnchor: [style.size / 2, style.size / 2],
+          className: "pmap-landmark",
+        });
+        L.marker([lm.y, lm.x], { icon })
           .bindTooltip(
             `<div style="font-weight:800">${escapeHtml(lm.name[lang] || lm.name.en)}</div>` +
               `<div>${t(style.label)}${lm.lv ? ` · Lv.${lm.lv}` : ""}</div>`,

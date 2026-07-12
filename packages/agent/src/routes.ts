@@ -42,7 +42,7 @@ import { cachedVersionSummary, getVersionStatus } from "./version.js";
 import { getConnectionInfo } from "./connectivity.js";
 import { getModsStatus, installComponent, installedEnhancements, removeComponent, setLuaModEnabled } from "./mods.js";
 import * as pakMods from "./pak-mods.js";
-import { getPalSchemaStatus, getPalStats, installPalSchema, removePalSchema, writePalStats } from "./palschema.js";
+import { clearPalStats, getPalSchemaStatus, getPalStats, installPalSchema, removePalSchema, writePalStats } from "./palschema.js";
 import { getModerationLists, moderation } from "./moderation.js";
 import { getLiveStatus, rest } from "./restapi.js";
 import * as files from "./files.js";
@@ -885,6 +885,41 @@ export function registerRoutes(
     return { output };
   });
 
+  // 批量給予道具(贊助者先行版 bulk-items):PalDefender RCON `giveitems`。
+  app.post("/api/instances/:id/items/give", async (req, reply) => {
+    if (!featureEnabled("bulk-items")) {
+      return reply
+        .code(403)
+        .send({ error: "此功能為贊助者先行版,請在設定頁輸入贊助者識別碼解鎖。" });
+    }
+    const rec = getOr404((req.params as { id: string }).id);
+    if (rec.backend !== "native") {
+      return reply.code(409).send({ error: "批量給予道具目前僅支援原生模式的實例" });
+    }
+    if (!getModsStatus(rec, ctxOf(rec)).paldefender.installed) {
+      return reply.code(409).send({ error: "需要先安裝 PalDefender 才能發道具" });
+    }
+    requireRcon(rec);
+    const { userId, items } = z
+      .object({
+        userId: z.string().trim().min(1).max(128),
+        items: z
+          .array(
+            z.object({
+              itemId: z.string().trim().regex(/^[A-Za-z0-9_]+$/).max(64),
+              amount: z.number().int().min(1).max(99999),
+            }),
+          )
+          .min(1)
+          .max(50),
+      })
+      .parse(req.body);
+    // PalDefender giveitems <UserId> item1:qty1 item2:qty2 …
+    const list = items.map((i) => `${i.itemId}:${i.amount}`).join(" ");
+    const output = await rconExec(rec, `giveitems ${userId} ${list}`);
+    return { output };
+  });
+
   // ── PalDefender Config.json ──
   app.get("/api/instances/:id/paldefender-config", async (req) => {
     const rec = getOr404((req.params as { id: string }).id);
@@ -960,6 +995,12 @@ export function registerRoutes(
       .parse(req.body);
     // 改動寫進 PalSchema mod 檔,伺服器重啟後生效(不即時)。
     return writePalStats(rec, ctxOf(rec), body.row, body.values as PalStatValues);
+  });
+
+  // 清空所有物種數值調整。刻意「不」做贊助者 gate:贊助到期的使用者也要能改回原設定。
+  app.delete("/api/instances/:id/pal-stats", async (req) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    return clearPalStats(rec, ctxOf(rec));
   });
 
   // ── config-file health & regeneration ──

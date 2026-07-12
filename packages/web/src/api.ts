@@ -296,6 +296,18 @@ export class AgentClient {
     });
   }
 
+  /** 批量給予道具(贊助者先行版)。非贊助者回 403。 */
+  giveItems(
+    id: string,
+    userId: string,
+    items: { itemId: string; amount: number }[],
+  ): Promise<{ output: string }> {
+    return this.request(`/api/instances/${id}/items/give`, {
+      method: "POST",
+      body: JSON.stringify({ userId, items }),
+    });
+  }
+
   live(id: string): Promise<LiveStatus> {
     return this.request(`/api/instances/${id}/live`);
   }
@@ -436,6 +448,11 @@ export class AgentClient {
       method: "PUT",
       body: JSON.stringify({ row, values }),
     });
+  }
+
+  /** 清空所有物種數值調整(改回原本設定)。非贊助者也可用。 */
+  clearPalStats(id: string): Promise<PalStatsStatus> {
+    return this.request(`/api/instances/${id}/pal-stats`, { method: "DELETE" });
   }
 
   configHealth(id: string): Promise<ConfigHealth> {

@@ -11,7 +11,7 @@ import { CreditsModal } from "./CreditsModal";
 import { InstanceDetailPage } from "./InstanceDetail";
 import { Mascot } from "./Mascot";
 import { AnnouncementPopup } from "./AnnouncementModal";
-import { SiteFooter } from "./SiteFooter";
+import { OPEN_SETTINGS_EVENT, SiteFooter } from "./SiteFooter";
 import { ThemeToggle } from "./theme";
 import { LangSelect, useI18n } from "./i18n";
 import { Overlay, Select, StatusBadge, btn, btnGhost, card, errorCls, inputCls, labelCls } from "./ui";
@@ -45,7 +45,7 @@ export default function App() {
           }}
         />
       )}
-      <SiteFooter />
+      <SiteFooter conn={conn} />
     </>
   );
 }
@@ -79,6 +79,13 @@ function Shell({ conn, onDisconnect }: { conn: Connection; onDisconnect: () => v
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showCredits, setShowCredits] = useState(false);
+
+  // 左下角「有新版本」小提醒點下去 → 打開設定視窗(裡頭有 GUI 更新區塊)。
+  useEffect(() => {
+    const open = () => setShowSettings(true);
+    window.addEventListener(OPEN_SETTINGS_EVENT, open);
+    return () => window.removeEventListener(OPEN_SETTINGS_EVENT, open);
+  }, []);
 
   return (
     // data-content-root:左下角的 SiteFooter 靠它判斷自己有沒有蓋到內容。
@@ -245,6 +252,7 @@ function CreateDialog({
   const [k8sNamespace, setK8sNamespace] = useState("");
   const [k8sStatefulSet, setK8sStatefulSet] = useState("");
   const [k8sServiceName, setK8sServiceName] = useState("");
+  const [dockerImage, setDockerImage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [platform, setPlatform] = useState<string | null>(null);
@@ -279,6 +287,7 @@ function CreateDialog({
         flavor: "vanilla",
         gamePort,
         serverDir: backend === "native" && serverDir.trim() ? serverDir.trim() : undefined,
+        dockerImage: backend === "docker" && dockerImage.trim() ? dockerImage.trim() : undefined,
         k8sNamespace: backend === "k8s" ? k8sNamespace.trim() : undefined,
         k8sStatefulSet: backend === "k8s" ? k8sStatefulSet.trim() : undefined,
         k8sServiceName: backend === "k8s" && k8sServiceName.trim() ? k8sServiceName.trim() : undefined,
@@ -336,6 +345,21 @@ function CreateDialog({
               onChange={(e) => setAdvancedMode(e.target.checked)}
             />
             {t("顯示進階選項(Kubernetes)")}
+          </label>
+        )}
+        {backend === "docker" && (
+          <label className={labelCls}>
+            {t("自訂鏡像(選填)")}
+            <input
+              className={inputCls}
+              value={dockerImage}
+              onChange={(e) => setDockerImage(e.target.value)}
+              placeholder={t("留空=內建映像;或填 ghcr.io/…/palworld:tag")}
+              maxLength={200}
+            />
+            <span className="text-xs text-ink-muted">
+              {t("沿用你已在 Docker 部署的其他帕魯鏡像。鏡像需已存在於本機(先 docker pull)。")}
+            </span>
           </label>
         )}
         {backend === "k8s" && (

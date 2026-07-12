@@ -90,7 +90,7 @@ export default async function LangLayout({
         applicationCategory: 'GameApplication',
         operatingSystem: 'Windows, Linux',
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'TWD' },
-        downloadUrl: 'https://github.com/io-software-ai/palserver-gui/releases',
+        downloadUrl: 'https://github.com/DaFeiMao233/palserver-gui/releases',
         softwareVersion: '2.0',
         inLanguage: ['zh-Hant', 'en', 'ja'],
         screenshot: `${SITE_URL}/assets/${lang}/overview.jpg`,

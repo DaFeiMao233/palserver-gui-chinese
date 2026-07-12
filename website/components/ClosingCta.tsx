@@ -12,7 +12,7 @@ export default function ClosingCta({ d }: { d: Dictionary['closing'] }) {
             {d.lead}
           </p>
           <div className="cta" style={{ marginTop: 0 }}>
-            <a className="btn btn-p" href="https://github.com/io-software-ai/palserver-gui/releases">
+            <a className="btn btn-p" href="https://github.com/DaFeiMao233/palserver-gui/releases">
               {d.ctaDownload}
             </a>
             <a className="btn btn-g" href="https://github.com/io-software-ai/palserver-gui">

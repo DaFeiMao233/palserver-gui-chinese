@@ -572,7 +572,172 @@ const ja: Dictionary = {
   langLabel: '言語',
 };
 
-const dictionaries: Record<Locale, Dictionary> = { zh, en, ja };
+const zhCn: Dictionary = {
+  meta: {
+    title: 'palserver GUI — 帕鲁专用服务器管理，一键开服零指令',
+    description:
+      'palserver GUI 是免费开源的帕鲁（Palworld）专用服务器管理工具：一键开服、80+ 世界设置、模组管理、自动备份、手机远程管理。零指令、零配置文件，免安装下载即用。',
+    ogAlt: 'palserver GUI 服务器管理总览画面',
+  },
+  nav: { features: '功能', how: '如何运作', start: '开始使用', team: '团队', github: 'GitHub', download: '下载' },
+  hero: {
+    eyebrow: '开源 · 免费 · 帕鲁专用服务器管理',
+    h1Emph: '一键',
+    h1Rest: '开一台帕鲁服务器。',
+    h1Line2: '零指令、零配置文件。',
+    sub: 'palserver GUI 把开服、改设置、备份、邀朋友、救崩溃，全部变成画面上的按钮。装在放服务器的电脑上，手机、平板、电脑打开网页就能管理——人在外面，也能一键重开服务器。',
+    ctaDownload: '免费下载',
+    ctaLearn: '看看能做什么',
+    chips: [
+      { strong: '免安装', tail: ' 下载就能用' },
+      { lead: '本机管理 ', strong: '免密码' },
+      { lead: '手机平板 ', strong: '都能管' },
+      { plain: '中／英／日 · 深浅色' },
+    ],
+    shotAlt: 'palserver GUI 服务器总览画面：状态、玩家、性能一目了然',
+    shotLabel: 'palserver GUI',
+  },
+  stats: { labels: ['需要记的指令', '管理分页，一页包办', '界面语言', '开源 · 非商业用途'], free: '免费' },
+  why: {
+    eyebrow: '为什么需要它',
+    h2: '开专用服务器，不该是一场噩梦。',
+    lead: '改不完的配置文件、背不完的指令、朋友卡在「连不进来」、游戏一改版就炸存档、半夜服务器崩溃没人救……这些不是「架好就没事」的小事。palserver GUI 把每一项都收进干净的画面里，新手觉得简单，老手觉得够力。',
+  },
+  how: {
+    eyebrow: '一分钟看懂',
+    h2: '打开网页，人在哪都能顾。',
+    lead: '把 palserver GUI 装在放服务器的那台电脑上，之后不管用电脑、手机还是平板，打开网页就是管理画面。游戏和存档都留在你自己的电脑里，网页只是遥控器——在家直接进，出门在外点个链接也能连上。',
+    deviceTitle: '你的设备',
+    deviceDesc: '电脑、手机、平板。打开网页就是管理画面，在家直接进，出门点链接即连。',
+    midLine1: '安全连接',
+    midLine2: '点一下就连上',
+    serverTitle: '放服务器的电脑',
+    serverDesc: 'palserver GUI 在这里帮你顾着服务器：存档、模组、备份，通通打理好。',
+  },
+  features: {
+    eyebrow: '功能巡礼',
+    h2: '从开服到救火，一页全包。',
+    lead: '每一台服务器点进去就是完整面板：总览、性能、玩家、地图、指令、设置、引擎、模组、备份、自动重启、日志——12 个分页一行排开。',
+    items: [
+      {
+        title: '所有服务器，一眼掌握',
+        bodyPre: '每台的状态、原版/强化、游戏端口、可更新提示都在卡片上，点进去就是完整管理。',
+        alt: 'palserver GUI 服务器列表',
+        label: '服务器列表',
+      },
+      {
+        title: '设置与引擎微调，附白话说明',
+        bodyPre: '世界规则、经验倍率、掉落、PvP 全部有中文标签与提示；进阶玩家想调的',
+        bodyEmph: '引擎参数',
+        bodyPost: '也备好预设组合，一键套用。',
+        bullets: ['每一项都告诉你调高调低会怎样', '写档保留你手动加的设置'],
+        alt: '引擎微调与性能预设',
+        label: '引擎微调',
+      },
+      {
+        title: '反外挂与模组，一键管理',
+        bodyPre: '反外挂与模组加载器一键装、更新、移除，还会提醒「游戏改版后模组可能暂时失效」。模组直接在画面上开关。',
+        alt: '模组安装与管理',
+        label: '模组管理',
+      },
+      {
+        title: '即时性能，走势一目了然',
+        bodyPre: 'CPU、内存、运行时间，加上服务器流畅度指标，配上即时走势图。撑不住的时候，你会第一个知道。',
+        alt: '性能分析与即时走势',
+        label: '性能分析',
+      },
+      {
+        title: '80+ 世界参数，不用开文件',
+        bodyPre: '难度、资源、繁殖、据点、伤害倍率……全部整理成分类、附说明的表单，改完提示你重启生效。存档损坏还会检测并一键重建。',
+        alt: '世界设置编辑器',
+        label: '世界设置',
+      },
+      {
+        title: '换设备、邀朋友，一页搞定',
+        bodyPre: '设置页帮你准备好「一键登录链接」，复制给手机或另一台电脑，点开就能连；也能一键清除浏览器缓存重连。',
+        alt: '设置页与多设备连接',
+        label: '在其他设备连接',
+      },
+    ],
+  },
+  audience: {
+    eyebrow: '两种人都合用',
+    h2: '新手觉得简单，老手觉得够力。',
+    beginnerTag: 'For beginners',
+    beginnerTitle: '第一次开服务器',
+    powerTag: 'For power users',
+    powerTitle: '老手想要的控制力',
+    beginner: [
+      { head: '一键开服。', body: '创建、启动、更新全部用按的，不背指令、不改配置文件。' },
+      { head: '本机免密码直进。', body: '在自己电脑打开就是管理画面，零设置。' },
+      { head: '邀朋友零门槛。', body: '传一条设置链接，朋友点一下就连上。' },
+      { head: '可爱又直觉。', body: '中文界面、附说明，鼠标点一点就能调。' },
+    ],
+    power: [
+      { head: '原生 / Docker 双后端。', body: '直接开 PalServer 或跑容器；可接管既有安装或指定空文件夹安装。' },
+      { head: 'Schema 驱动配置。', body: '80+ 世界参数 + Engine.ini 引擎微调，类型一致、保留未管理的键。' },
+      { head: 'RCON 指令台 + 模组。', body: '内建 RCON；PalDefender / UE4SS 一键装更新移除。' },
+      { head: '备份排程与迁移。', body: 'tar.gz 定期备份、一键还原、跨来源存档搬家、REST API 代理。' },
+    ],
+  },
+  wishes: {
+    eyebrow: '社群一路陪着长大',
+    h2: '你许愿的，我们都做了。',
+    lead: 'palserver GUI 从一个「懒得改配置文件」的小工具开始，这两年社群提的需求，一个一个补上。',
+    items: [
+      { q: '能不能把既有的存档导进去？', head: '存档迁移', body: '——别台专用服务器、v1 旧版、本机四人邀请码存档都能接管。' },
+      { q: '好怕存档坏掉…', head: '备份排程 + 一键还原', body: '，还会检测存档损坏并协助重建。' },
+      { q: '想开服务器玩模组', head: '反外挂与模组一键', body: '安装、更新、移除，模组在画面上直接开关。' },
+      { q: '死亡掉落、孵化时间也能调吗？', head: '80+ 世界参数可视化', body: '，分类、附说明，不用再开配置文件。' },
+      { q: '朋友延迟太高连不进来', head: 'VPN 一键邀请', body: '，或选公司的 IP 直连设置服务。' },
+      { q: '不想每次都打一长串指令更新', head: '版本检查 + 一键更新', body: '，零指令。' },
+    ],
+  },
+  getStarted: {
+    eyebrow: '三步开始',
+    h2: '下载、执行、打开浏览器。',
+    lead: '不用先装任何环境、不用碰命令行。免安装执行文件把需要的都包好了。',
+    steps: [
+      { title: '下载', body: '到下载页抓对应你系统的文件，解压缩就好。' },
+      { title: '双击执行', body: '窗口会显示你的管理网址，和邀请朋友用的链接，让它开着就好。' },
+      { title: '打开浏览器', body: '点窗口里的管理网址，进入画面，开你的第一台服务器。' },
+    ],
+    shotAlt: 'palserver GUI 首次连接与配对画面',
+    shotLabel: '第一次连接',
+    figcaption: '换设备或帮朋友设置？把设置链接传过去，点一下就连上——不用手动输入一长串密码。',
+  },
+  niceDetails: {
+    eyebrow: '细节控的贴心',
+    h2: '连「开场白」都帮你想好了。',
+    lead: '内建公告系统、存档损坏检测与一键重建、自动重启（排程 / 内存门槛 / 崩溃救援）、玩家 ID 全站打码、在线地图、三语界面与深浅色——很多你之后才会感谢的小地方。',
+    shotAlt: 'palserver GUI 内建公告系统',
+    shotLabel: '公告系统',
+  },
+  team: {
+    eyebrow: '谁做的',
+    h2: '一群喜欢帕鲁的人，用爱维护。',
+    lead: 'palserver GUI 完全免费开源，由核心团队持续维护。喜欢的话，一杯咖啡就是最大的鼓励。',
+    roles: ['核心开发人员', '核心开发人员', '核心团队维护者', '核心团队维护者', '核心团队维护者・资安', '核心团队维护者'],
+  },
+  closing: {
+    eyebrow: '开始吧',
+    h2: '把开服务器的麻烦，交给 palserver GUI。',
+    lead: '完全免费、开源。喜欢的话到 GitHub 给颗星、到 Discord 一起聊。',
+    ctaDownload: '免费下载',
+    notePre: '不想自己顾？我们也提供 ',
+    noteLink: '游戏服务器代管维护服务',
+    notePost: '——版本更新、备份、崩溃救援交给我们。',
+  },
+  footer: {
+    madePre: '由 ',
+    madeMid: ' 与核心团队用爱制作 · ',
+    license: 'palserver GUI 2.0 · 开源免费 · 仅限非商业使用（PolyForm Noncommercial），不得用于营利',
+  },
+  langLabel: '语言',
+};
+
+
+const dictionaries: Record<Locale, Dictionary> = { zh, 'zh-cn': zhCn, en, ja };
 
 export function getDictionary(locale: Locale): Dictionary {
   return dictionaries[locale];

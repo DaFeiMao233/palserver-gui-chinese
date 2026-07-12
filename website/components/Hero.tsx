@@ -15,7 +15,7 @@ export default function Hero({ d, lang }: { d: Dictionary['hero']; lang: Locale 
         </h1>
         <p className="sub">{d.sub}</p>
         <div className="cta">
-          <a className="btn btn-p" href="https://github.com/io-software-ai/palserver-gui/releases">
+          <a className="btn btn-p" href="https://github.com/DaFeiMao233/palserver-gui/releases">
             {d.ctaDownload}
           </a>
           <a className="btn btn-g" href="#features">

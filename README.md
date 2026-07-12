@@ -1,309 +1,309 @@
 # palserver GUI
 
-**繁體中文** | [English](README.en.md) | [日本語](README.ja.md)
+**简体中文**
 
-<p align="center"><a href="https://palserver-GUI.iosoftware.ai"><b>官方網站 palserver-GUI.iosoftware.ai</b></a> —— 下載、教學、常見問題</p>
+<p align="center"><a href="https://palserver-GUI.iosoftware.ai"><b>官方网站 palserver-GUI.iosoftware.ai</b></a> —— 下载、教程、常见问题</p>
 
-**幻獸帕魯(Palworld)專用伺服器的圖形化管理工具。**
-在你的主機上跑一支 agent,然後用瀏覽器管理伺服器 —— 開服、改設定、看玩家、備份存檔、裝模組,全都不用碰指令列。
+**幻兽帕鲁（Palworld）专用服务器的图形化管理工具。**
+在你的主机上运行一个 agent，然后用浏览器管理服务器 —— 开服、改设置、看玩家、备份存档、装模组，全都不用碰命令行。
 
-手機、平板、另一台電腦都能連進來管理;朋友也可以用一條連結加入管理。
+手机、平板、另一台电脑都能连进来管理；朋友也可以用一条链接加入管理。
 
 ```
-瀏覽器(React Web UI)
-        │  HTTP / WebSocket(Bearer token)
+浏览器（React Web UI）
+        │  HTTP / WebSocket（Bearer token）
         ▼
-   agent(Node/TypeScript,Fastify)
-        ├── native 後端(預設):直接在主機上啟動 PalServer,不需要 Docker
-        └── docker 後端(beta):把 PalServer 跑在容器裡
+   agent（Node/TypeScript，Fastify）
+        ├── native 后端（默认）：直接在主机上启动 PalServer，不需要 Docker
+        └── docker 后端（beta）：把 PalServer 跑在容器里
 ```
 
 ---
 
-## 畫面預覽
+## 画面预览
 
-> 介面支援繁體中文 / English / 日本語 與淺色 / 深色主題;截圖中的玩家與資料為展示用途。
+> 界面支持简体中文 / 繁体中文 / English / 日本語，以及浅色 / 深色主题；截图中的玩家与数据仅供展示。
 
 ![玩家管理](docs/screenshots/players.png)
 
-| 儀表板 | 世界設定 |
+| 仪表盘 | 世界设置 |
 | --- | --- |
-| ![儀表板](docs/screenshots/dashboard.png) | ![世界設定](docs/screenshots/settings.png) |
-| **引擎微調** | **存檔備份** |
-| ![引擎微調](docs/screenshots/engine.png) | ![存檔備份](docs/screenshots/saves.png) |
-| **模組管理** | **實例總覽** |
-| ![模組管理](docs/screenshots/mods.png) | ![實例總覽](docs/screenshots/overview.png) |
+| ![仪表盘](docs/screenshots/dashboard.png) | ![世界设置](docs/screenshots/settings.png) |
+| **引擎微调** | **存档备份** |
+| ![引擎微调](docs/screenshots/engine.png) | ![存档备份](docs/screenshots/saves.png) |
+| **模组管理** | **实例总览** |
+| ![模组管理](docs/screenshots/mods.png) | ![实例总览](docs/screenshots/overview.png) |
 
 ---
 
-## 這份文件怎麼看
+## 这份文档怎么看
 
-| 你是… | 從這裡開始 |
+| 你是… | 从这里开始 |
 | --- | --- |
-| **玩家 / 開服的人** —— 只想把伺服器開起來 | [給玩家:五分鐘開服](#給玩家五分鐘開服) |
-| **伺服器管理員** —— 要長期營運、在意安全與自動化 | [給管理員:營運指南](#給管理員營運指南) |
-| **開發者** —— 想改程式、送 PR | [給開發者:開發指南](#給開發者開發指南) |
+| **玩家 / 开服的人** —— 只想把服务器开起来 | [给玩家：五分钟开服](#给玩家五分钟开服) |
+| **服务器管理员** —— 要长期运营、在意安全与自动化 | [给管理员：运营指南](#给管理员运营指南) |
+| **开发者** —— 想改程序、提交 PR | [给开发者：开发指南](#给开发者开发指南) |
 
-遇到問題先看 **[常見問題 FAQ](https://faq.toc.icu/)**,或到 [Discord](https://discord.gg/sgMMdUZd3V) 問。
+遇到问题先看 **[常见问题 FAQ](https://faq.toc.icu/)**，或到 [Discord](https://discord.gg/sgMMdUZd3V) 提问。
 
 ---
 
-## 功能總覽
+## 功能总览
 
-**開服與管理**
-- 建立多個伺服器實例,各自獨立的世界、埠號與設定;一鍵啟動 / 停止 / 重啟 / 刪除(刪除保留存檔)
-- 自動下載安裝 Palworld 伺服器檔案(透過 DepotDownloader),或**直接接管你既有的安裝目錄**
-- 遊戲版本檢查:比對已安裝版本與 Steam 上的最新版,一鍵更新伺服器
-- 即時日誌串流(agent / 遊戲 / PalDefender 三種來源可切換)
+**开服与管理**
+- 创建多个服务器实例，各自拥有独立的世界、端口与设置；一键启动 / 停止 / 重启 / 删除（删除会保留存档）
+- 自动下载安装 Palworld 服务器文件（通过 DepotDownloader），或**直接接管你已有的安装目录**
+- 游戏版本检查：对比已安装版本与 Steam 上的最新版本，一键更新服务器
+- 实时日志流（agent / 游戏 / PalDefender 三种来源可切换）
 
-**世界與效能設定**
-- 80+ 項世界設定的圖形化編輯器,依分類分頁,含型別、範圍與預設值;也可以直接編輯原始 `PalWorldSettings.ini`
-- `Engine.ini` 效能微調(tick rate、網路速率、逾時、GC 間隔…)附一鍵效能預設
-- 設定檔損毀時自動偵測,並提供「重建乾淨設定檔」(壞檔會先備份,不會直接刪掉)
+**世界与性能设置**
+- 80+ 项世界设置的图形化编辑器，按分类分页，包含类型、范围与默认值；也可以直接编辑原始 `PalWorldSettings.ini`
+- `Engine.ini` 性能微调（tick rate、网络速率、超时、GC 间隔等），附带一键性能预设
+- 设置文件损坏时自动检测，并提供“重建干净设置文件”（坏文件会先备份，不会直接删除）
 
 **玩家管理**
-- 線上玩家清單:等級、延遲、座標、建築數,點進去可看**他的帕魯與背包**(需 PalDefender)
-- 踢出、封鎖、白名單 —— **離線玩家也能操作**(例如幫人解封)
-- 歷史玩家名冊:agent 每 15 秒記錄一次,留下遊玩時數、上線次數、首次/最後上線;上下線時間軸
-- 全服廣播、立即存檔
-- 即時地圖:把線上玩家標在地圖上(地圖底圖需自備,見下方說明)
+- 在线玩家列表：等级、延迟、坐标、建筑数，点进去可查看**他的帕鲁与背包**（需要 PalDefender）
+- 踢出、封锁、白名单 —— **离线玩家也能操作**（例如帮人解封）
+- 历史玩家名册：agent 每 15 秒记录一次，保留游玩时长、上线次数、首次/最后上线；上下线时间轴
+- 全服广播、立即存档
+- 实时地图：把在线玩家标在地图上（地图底图需自备，见下方说明）
 
-**主控台**
-- 完整的 RCON 主控台,指令有搜尋、分類與參數表單;危險指令需二次確認
-- 需要玩家 ID 的參數會跳出玩家選擇器(含離線玩家);道具 / 帕魯 / 蛋的 ID 有圖示搜尋
-- 裝了 PalDefender 會自動把它的指令加進來
+**控制台**
+- 完整的 RCON 控制台，指令支持搜索、分类与参数表单；危险指令需要二次确认
+- 需要玩家 ID 的参数会弹出玩家选择器（含离线玩家）；道具 / 帕鲁 / 蛋的 ID 支持图标搜索
+- 安装 PalDefender 后会自动把它的指令加入进来
 
-**存檔與備份**
-- 排程自動備份:間隔、保留份數、沒人在線時跳過
-- 手動備份 / 還原 / 下載;還原前會自動先備份目前的世界
-- 多世界管理:列出所有世界、切換「啟用中的世界」、刪除個別玩家存檔
-- 存檔搬家教學(從別台伺服器、從 v1、從本機多人):[docs/MIGRATION.md](docs/MIGRATION.md)
+**存档与备份**
+- 定时自动备份：间隔、保留份数、无人在线时跳过
+- 手动备份 / 还原 / 下载；还原前会自动先备份当前世界
+- 多世界管理：列出所有世界、切换“启用中的世界”、删除单个玩家存档
+- 存档迁移教程（从其他服务器、从 v1、从本机多人）：[docs/MIGRATION.md](docs/MIGRATION.md)
 
-**模組**
-- 一鍵安裝 / 更新 / 移除 **PalDefender**(反外掛,前身 Palguard)與 **UE4SS**(Lua/藍圖模組載入器),各有穩定版與測試版通道
-- PalDefender 設定面板、Lua 模組開關、pak 模組管理
-- 檔案管理器:瀏覽、上傳、編輯、刪除伺服器目錄下的檔案
+**模组**
+- 一键安装 / 更新 / 移除 **PalDefender**（反外挂，前身 Palguard）与 **UE4SS**（Lua/蓝图模组加载器），各有稳定版与测试版通道
+- PalDefender 设置面板、Lua 模组开关、pak 模组管理
+- 文件管理器：浏览、上传、编辑、删除服务器目录下的文件
 
-**穩定性**
-- 自動重啟:排程(固定間隔或每日指定時間)、記憶體超標、崩潰自動復原(有每小時上限,避免無限重啟迴圈)
-- 重啟前會先廣播倒數並存檔;手動停止不會被當成崩潰
+**稳定性**
+- 自动重启：定时（固定间隔或每日指定时间）、内存超标、崩溃自动恢复（有每小时上限，避免无限重启循环）
+- 重启前会先广播倒计时并存档；手动停止不会被当成崩溃
 
 **其他**
-- 三種語言:繁體中文 / English / 日本語;淺色 / 深色主題
-- 連線診斷:偵測公網 IP、是否在 NAT/CGNAT 後面,並提供 VPN(Tailscale / Radmin)開服教學
-- GUI 自我更新(可選):從 GitHub Releases 檢查新版,驗證 SHA256 後換檔重啟
+- 三种语言：简体中文 / 繁体中文 / English / 日本語；浅色 / 深色主题
+- 连接诊断：检测公网 IP、是否在 NAT/CGNAT 后面，并提供 VPN（Tailscale / Radmin）开服教程
+- GUI 自我更新（可选）：从 GitHub Releases 检查新版，验证 SHA256 后替换文件并重启
 
 ---
 
-## 系統需求
+## 系统需求
 
-| 項目 | 說明 |
+| 项目 | 说明 |
 | --- | --- |
-| **作業系統** | **Windows 10+ 或 Linux(x86_64)**。macOS 可以跑 agent,但**跑不了 Palworld 伺服器**(SteamCMD/PalServer 不支援),只能拿來開發或管理遠端主機。 |
-| **硬體** | 依 Palworld 官方需求;伺服器檔案本身數十 GB,首次安裝要等一段時間 |
-| **Node.js** | **不需要**(免安裝執行檔已內含)。從原始碼跑才需要 Node 20+ 與 pnpm |
-| **Docker** | 不需要。只有選用 docker 後端(beta)時才要 |
+| **操作系统** | **Windows 10+ 或 Linux（x86_64）**。macOS 可以运行 agent，但**跑不了 Palworld 服务器**（SteamCMD/PalServer 不支持），只能用于开发或管理远程主机。 |
+| **硬件** | 按 Palworld 官方需求；服务器文件本身数十 GB，首次安装需要等待一段时间 |
+| **Node.js** | **不需要**（免安装执行文件已内置）。从源码运行才需要 Node 20+ 与 pnpm |
+| **Docker** | 不需要。只有选用 docker 后端（beta）时才需要 |
 
 ---
 
-## 給玩家:五分鐘開服
+## 给玩家：五分钟开服
 
-> 完整的圖文教學(含邀請朋友、VPN 設定):**[docs/INSTALL.zh-TW.md](docs/INSTALL.zh-TW.md)**
+> 完整的图文教程（含邀请朋友、VPN 设置）：**[docs/INSTALL.zh-TW.md](docs/INSTALL.zh-TW.md)**
 
-1. 到 [Releases](https://github.com/io-software-ai/palserver-gui/releases) 下載你系統對應的壓縮檔
-   (`palserver-agent-windows.zip` / `-linux.zip`),解壓縮。
-2. 執行裡面的 `palserver-agent`(Windows 是 `palserver-agent.exe`)。不用先裝 Node 或 Docker。
-3. 視窗會印出一段說明,照著打開 **`http://localhost:8250`** —— 本機管理**不需要密碼**。
-4. 按「建立伺服器」。第一次會下載 Palworld 伺服器檔案(**數十 GB,請耐心等**),進度看「日誌」分頁。
-5. 裝好後按「啟動」就開服了。
+1. 到 [Releases](https://github.com/io-software-ai/palserver-gui/releases) 下载你系统对应的压缩包
+   （`palserver-agent-windows.zip` / `-linux.zip`），解压。
+2. 运行里面的 `palserver-agent`（Windows 是 `palserver-agent.exe`）。不用先安装 Node 或 Docker。
+3. 窗口会打印一段说明，照着打开 **`http://localhost:8250`** —— 本机管理**不需要密码**。
+4. 点击“创建服务器”。第一次会下载 Palworld 服务器文件（**数十 GB，请耐心等待**），进度看“日志”分页。
+5. 安装好后点击“启动”就开服了。
 
-**邀請朋友一起管理:** 啟動視窗裡有一條 `?setup=XXXX-XXXX` 的連結,傳給對方在他的瀏覽器打開就能連進來
-(需要在同一個區網或 VPN 內)。也可以請他打開你的 agent 網址後輸入**配對碼**。
+**邀请朋友一起管理：** 启动窗口里有一条 `?setup=XXXX-XXXX` 的链接，发给对方在他的浏览器打开就能连进来
+（需要在同一个局域网或 VPN 内）。也可以请他打开你的 agent 地址后输入**配对码**。
 
-**讓朋友連進遊戲:** 最簡單的方式是 VPN(Tailscale 或 Radmin),GUI 的「連線」卡片會偵測你的網路環境並給對應教學。
-如果你有公網 IP,也可以走傳統的連接埠轉發(UDP 8211)。
+**让朋友连进游戏：** 最简单的方式是 VPN（Tailscale 或 Radmin），GUI 的“连接”卡片会检测你的网络环境并给出对应教程。
+如果你有公网 IP，也可以走传统的端口转发（UDP 8211）。
 
-> **關於地圖底圖:** 遊戲地圖是 Pocketpair 的美術資產,我們不能夾帶,所以「即時地圖」預設是空白的 —— 請自己貼一張圖片網址或上傳檔案,再用校正工具對齊。
+> **关于地图底图：** 游戏地图是 Pocketpair 的美术资产，我们不能附带，所以“实时地图”默认是空白的 —— 请自己粘贴一张图片网址或上传文件，再用校准工具对齐。
 
 ---
 
-## 給管理員:營運指南
+## 给管理员：运营指南
 
 ### 安全模型
 
-agent 只有一道門:**本機(loopback)免驗證,其他一律要 token。**
+agent 只有一道门：**本机（loopback）免验证，其他一律要 token。**
 
-- **本機管理**(`127.0.0.1`)不需要任何憑證 —— 單機自用零摩擦。
-- **其他裝置**要嘛帶 API token(`Authorization: Bearer <token>`),要嘛用**配對碼**換一把 token。
-  配對碼是好唸的 `XXXX-XXXX`(去掉了易混淆的字元),可隨時重新產生,舊碼與舊連結立刻失效。
-- token 存在資料夾裡(權限 `0600`),第一次啟動時產生並印在視窗上。
-- 多人共用的主機請設 `PALSERVER_REQUIRE_TOKEN=1`,連 loopback 也要 token。
+- **本机管理**（`127.0.0.1`）不需要任何凭证 —— 单机自用零阻力。
+- **其他设备**要么带 API token（`Authorization: Bearer <token>`），要么用**配对码**换取一个 token。
+  配对码是好读的 `XXXX-XXXX`（去掉了易混淆的字符），可随时重新生成，旧码与旧链接会立刻失效。
+- token 存在数据文件夹里（权限 `0600`），第一次启动时生成并打印在窗口上。
+- 多人共用的主机请设置 `PALSERVER_REQUIRE_TOKEN=1`，连 loopback 也要 token。
 
-> agent 會直接操作主機上的檔案與行程,**不要把 `:8250` 直接曝露在公網上**。要遠端管理,請走 VPN(Tailscale/WireGuard)或放在反向代理後面並開 TLS。
+> agent 会直接操作主机上的文件与进程，**不要把 `:8250` 直接暴露在公网**。要远程管理，请走 VPN（Tailscale/WireGuard），或放在反向代理后面并开启 TLS。
 
-### 環境變數
+### 环境变量
 
-| 變數 | 預設 | 用途 |
+| 变量 | 默认 | 用途 |
 | --- | --- | --- |
-| `PALSERVER_DATA_DIR` | `~/.palserver-agent` | 所有狀態的存放位置 |
-| `PALSERVER_AGENT_PORT` | `8250` | 監聽埠 |
-| `PALSERVER_AGENT_HOST` | `0.0.0.0` | 綁定位址 |
-| `PALSERVER_REQUIRE_TOKEN` | 未設 | `=1` 時連本機也要 token |
-| `PALSERVER_TLS` | 未設 | `=1` 以 HTTPS 監聽(自簽憑證自動生成於 `<data-dir>/tls`,也可放自己的) |
-| `PALSERVER_WEB_ORIGINS` | 空 | 允許跨源連線的網站來源(逗號分隔),給獨立部署的公開 web 站用 |
-| `PALSERVER_AUTO_UPDATE` | 未設 | `=0` 完全停用 GUI 自我更新(連檢查都不做) |
-| `PALSERVER_TELEMETRY` | 未設 | `=0` 強制停用匿名使用統計 |
-| `PALSERVER_STATS_URL` | 官方統計端點 | 改成自架的統計後端 |
-| `PALSERVER_GITHUB_REPO` | `io-software-ai/palserver-gui` | 自我更新要看哪個 repo 的 Releases |
-| `PALSERVER_IMAGE_VANILLA` | `palserver/vanilla:latest` | docker 後端用的映像 |
+| `PALSERVER_DATA_DIR` | `~/.palserver-agent` | 所有状态的存放位置 |
+| `PALSERVER_AGENT_PORT` | `8250` | 监听端口 |
+| `PALSERVER_AGENT_HOST` | `0.0.0.0` | 绑定地址 |
+| `PALSERVER_REQUIRE_TOKEN` | 未设置 | `=1` 时连本机也要 token |
+| `PALSERVER_TLS` | 未设置 | `=1` 以 HTTPS 监听（自签证书自动生成于 `<data-dir>/tls`，也可放自己的） |
+| `PALSERVER_WEB_ORIGINS` | 空 | 允许跨源连接的网站来源（逗号分隔），给独立部署的公开 web 站使用 |
+| `PALSERVER_AUTO_UPDATE` | 未设置 | `=0` 完全停用 GUI 自我更新（连检查都不做） |
+| `PALSERVER_TELEMETRY` | 未设置 | `=0` 强制停用匿名使用统计 |
+| `PALSERVER_STATS_URL` | 官方统计端点 | 改成自建的统计后端 |
+| `PALSERVER_GITHUB_REPO` | `io-software-ai/palserver-gui` | 自我更新要查看哪个 repo 的 Releases |
+| `PALSERVER_IMAGE_VANILLA` | `palserver/vanilla:latest` | docker 后端使用的镜像 |
 
-### 資料放在哪
+### 数据放在哪里
 
 ```
 ~/.palserver-agent/
-├── token                 API token(0600)
-├── pair-code             配對碼(0600)
-├── instances.json        所有實例的設定(設定的唯一真相來源)
-├── tools/                快取的 DepotDownloader
-├── tls/                  自簽憑證(PALSERVER_TLS=1 時)
+├── token                 API token（0600）
+├── pair-code             配对码（0600）
+├── instances.json        所有实例的设置（设置的唯一真实来源）
+├── tools/                缓存的 DepotDownloader
+├── tls/                  自签证书（PALSERVER_TLS=1 时）
 └── instances/<id>/
-    ├── server/           agent 自己安裝的伺服器檔案(接管既有安裝時不會有)
-    ├── server.pid        遊戲行程 pid
-    ├── server.log        agent 抓到的伺服器輸出
-    └── backups/          tar.gz 備份
+    ├── server/           agent 自己安装的服务器文件（接管已有安装时不会有）
+    ├── server.pid        游戏进程 pid
+    ├── server.log        agent 捕获到的服务器输出
+    └── backups/          tar.gz 备份
 ```
 
-伺服器行程是 **detached** 生成的,agent 重啟(或自我更新)**不會**把遊戲伺服器一起關掉;pid 檔讓 agent 重新接上。
+服务器进程是以 **detached** 方式生成的，agent 重启（或自我更新）**不会**把游戏服务器一起关掉；pid 文件会让 agent 重新接上。
 
 ### 部署方式
 
-**免安裝執行檔(推薦)** —— 就是玩家那條路,適合絕大多數人。
+**免安装执行文件（推荐）** —— 就是玩家那条路，适合绝大多数人。
 
-**用 Docker 跑 agent 本身**(Linux 主機):
+**用 Docker 运行 agent 本身**（Linux 主机）：
 
 ```sh
-docker compose up -d          # 見 docker-compose.yml
+docker compose up -d          # 见 docker-compose.yml
 ```
 
-需要掛載 `docker.sock`,而且 host 上的資料夾路徑要與容器內一致(實例目錄會被 bind-mount 進遊戲容器)。
+需要挂载 `docker.sock`，而且 host 上的文件夹路径要与容器内一致（实例目录会被 bind-mount 进游戏容器）。
 
-**純 web 站 + 遠端 agent** —— Release 裡的 `palserver-web.zip` 是可獨立部署的前端;把站台網址加進 agent 的
-`PALSERVER_WEB_ORIGINS`,玩家就能從公開站台連回自己家裡的 agent。
+**纯 web 站 + 远程 agent** —— Release 里的 `palserver-web.zip` 是可独立部署的前端；把站点网址加入 agent 的
+`PALSERVER_WEB_ORIGINS`，玩家就能从公开站点连回自己家里的 agent。
 
-**從原始碼** —— 見下方[開發指南](#給開發者開發指南);`pnpm release:exe` 可以自己產出免安裝執行檔。
+**从源码** —— 见下方[开发指南](#给开发者开发指南)；`pnpm release:exe` 可以自己生成免安装执行文件。
 
 ### 自我更新
 
-在「設定 → GUI 更新」。預設**只檢查、不安裝**(每 6 小時),查到新版會顯示更新卡片,按下去才動作:
-下載對應平台的 `.tar.gz` → **比對 `SHA256SUMS.txt`** → 換掉執行檔與前端 → 重啟自己。也可以打開「自動安裝」。
+在“设置 → GUI 更新”。默认**只检查、不安装**（每 6 小时），查到新版会显示更新卡片，点击后才会执行：
+下载对应平台的 `.tar.gz` → **比对 `SHA256SUMS.txt`** → 替换执行文件与前端 → 重启自己。也可以开启“自动安装”。
 
-安全設計:沒有校驗檔就拒絕更新;非免安裝執行檔(例如開發模式)拒絕自我更新;有伺服器正在安裝檔案時拒絕更新
-(下載器是 agent 的子行程,重啟會中斷它);換檔失敗會把舊執行檔搬回去。
+安全设计：没有校验文件就拒绝更新；非免安装执行文件（例如开发模式）拒绝自我更新；有服务器正在安装文件时拒绝更新
+（下载器是 agent 的子进程，重启会中断它）；替换文件失败会把旧执行文件移回去。
 
-### 隱私與匿名統計
+### 隐私与匿名统计
 
-GUI 會回報**匿名**的使用計數(安裝數、伺服器建立/啟動數、不重複玩家數),用來了解使用規模。
-不含個資、IP、伺服器名稱或存檔內容;玩家識別碼只送單向雜湊。
-可在「設定」關閉,或 `PALSERVER_TELEMETRY=0` 強制停用。完整說明:**[PRIVACY.md](PRIVACY.md)**。
+GUI 会回报**匿名**的使用计数（安装数、服务器创建/启动数、不重复玩家数），用于了解使用规模。
+不含个人信息、IP、服务器名称或存档内容；玩家识别码只发送单向哈希。
+可在“设置”关闭，或用 `PALSERVER_TELEMETRY=0` 强制停用。完整说明：**[PRIVACY.md](PRIVACY.md)**。
 
 ---
 
-## 給開發者:開發指南
+## 给开发者：开发指南
 
-### 架構
+### 架构
 
-前端**永遠不直接碰**遊戲的 REST API、RCON 或 PalDefender 的 API —— 那些憑證只留在 agent 裡,瀏覽器只跟 agent 說話。
+前端**永远不直接碰**游戏的 REST API、RCON 或 PalDefender 的 API —— 那些凭证只留在 agent 里，浏览器只跟 agent 通信。
 
-| 套件 | 內容 |
+| 包 | 内容 |
 | --- | --- |
-| `packages/agent` | Fastify daemon:REST + WebSocket API、行程管理、RCON、備份、模組安裝、自我更新 |
+| `packages/agent` | Fastify daemon：REST + WebSocket API、进程管理、RCON、备份、模组安装、自我更新 |
 | `packages/web` | React 18 + Vite + Tailwind 4 的 Web UI |
-| `packages/shared` | 共用的 zod schema 與 API 型別(世界設定、實例契約) |
-| `packages/stats` | Cloudflare Worker + D1,匿名統計收集端 |
-| `images/vanilla` | docker 後端用的 Linux PalServer 映像(內含 DepotDownloader) |
-| `images/dev-stub` | 假的 PalServer,給 Apple Silicon 開發用 |
-| `deperated/` | v1 的 Electron 版,只留作 UX/i18n 參考,不屬於這個 workspace |
+| `packages/shared` | 共用的 zod schema 与 API 类型（世界设置、实例契约） |
+| `packages/stats` | Cloudflare Worker + D1，匿名统计收集端 |
+| `images/vanilla` | docker 后端用的 Linux PalServer 镜像（内置 DepotDownloader） |
+| `images/dev-stub` | 假的 PalServer，给 Apple Silicon 开发用 |
+| `deperated/` | v1 的 Electron 版，仅保留作 UX/i18n 参考，不属于这个 workspace |
 
-### 開始開發
+### 开始开发
 
-需要 Node 20+ 與 pnpm 11。
+需要 Node 20+ 与 pnpm 11。
 
 ```sh
 pnpm install
 pnpm build
 
-pnpm dev:agent    # 終端機 1 — agent(第一次會印出 API token)
-pnpm dev:web      # 終端機 2 — Web UI on http://localhost:5173
+pnpm dev:agent    # 终端 1 — agent（第一次会打印 API token）
+pnpm dev:web      # 终端 2 — Web UI on http://localhost:5173
 ```
 
-agent 預設監聽 `:8250`。當 `packages/web/dist` 存在時,agent 會自己 serve 前端(合一版)。
+agent 默认监听 `:8250`。当 `packages/web/dist` 存在时，agent 会自己 serve 前端（合一版）。
 
-| 指令 | 做什麼 |
+| 指令 | 做什么 |
 | --- | --- |
-| `pnpm typecheck` | 全 workspace 型別檢查(CI 會跑) |
-| `pnpm build` | 全部建置 |
-| `pnpm bundle:agent` | esbuild 打包成單一 CJS |
-| `pnpm release:exe` | 產出當前平台的免安裝執行檔到 `release/` |
+| `pnpm typecheck` | 全 workspace 类型检查（CI 会跑） |
+| `pnpm build` | 全部构建 |
+| `pnpm bundle:agent` | esbuild 打包成单一 CJS |
+| `pnpm release:exe` | 生成当前平台的免安装执行文件到 `release/` |
 
-### 世界設定是 schema 驅動的
+### 世界设置是 schema 驱动的
 
-`packages/shared/src/options.ts` 是**唯一的真相來源**:每個選項的型別、預設值、範圍與分類都在那裡
-(依[官方文件](https://docs.palworldgame.com/)校對)。zod schema、agent 的 ini 序列化、前端的設定編輯器全部由它衍生 ——
-**在那裡加一個選項,整條路就通了**。中文標籤在 `packages/web/src/labels.ts`。
+`packages/shared/src/options.ts` 是**唯一真实来源**：每个选项的类型、默认值、范围与分类都在那里
+（按[官方文档](https://docs.palworldgame.com/)校对）。zod schema、agent 的 ini 序列化、前端的设置编辑器全部由它衍生 ——
+**在那里加一个选项，整条链路就通了**。中文标签在 `packages/web/src/labels.ts`。
 
-`Engine.ini` 與 PalDefender 的 `Config.json` 也是同樣作法,而且**寫入時採合併策略**:GUI 不管的區段、鍵與註解都會原樣保留。
+`Engine.ini` 与 PalDefender 的 `Config.json` 也是同样做法，而且**写入时采用合并策略**：GUI 不管的区段、键与注释都会原样保留。
 
 ### i18n
 
-程式碼裡的字串一律寫**中文原文**,`t("中文")` 拿原文當 key 查字典。
-`packages/web/public/i18n/{en,ja}.json` 是「中文 → 譯文」對照表,查不到就顯示中文原文,所以**漏翻不會壞版面**。
-字典會在背景從 GitHub raw 抓最新版,翻譯修正不用重新發版。
+代码里的字符串一律写**中文原文**，`t("中文")` 用原文当 key 查字典。
+`packages/web/public/i18n/{en,ja}.json` 是“中文 → 译文”对照表，查不到就显示中文原文，所以**漏翻不会破坏版面**。
+字典会在后台从 GitHub raw 拉取最新版，翻译修正不用重新发版。
 
-### 在 Apple Silicon 上開發
+### 在 Apple Silicon 上开发
 
-真的伺服器在 Rosetta 下跑不起來(SteamCMD 是 32-bit;PalServer 一存檔就 segfault)。UI/agent 開發請用假伺服器:
+真正的服务器在 Rosetta 下跑不起来（SteamCMD 是 32-bit；PalServer 一存档就 segfault）。UI/agent 开发请用假服务器：
 
 ```sh
 docker build -t palserver/dev-stub:latest images/dev-stub
 PALSERVER_IMAGE_VANILLA=palserver/dev-stub:latest pnpm dev:agent
 ```
 
-真伺服器的驗證需要一台 x86_64 的 Windows 或 Linux。
+真服务器的验证需要一台 x86_64 的 Windows 或 Linux。
 
-### 發版
+### 发布
 
-推一個 `v*` tag,[release workflow](.github/workflows/release.yml) 會在三種 OS 上各自產出:
+推一个 `v*` tag，[release workflow](.github/workflows/release.yml) 会在三种 OS 上分别生成：
 
-- `palserver-agent-<os>.zip` —— 給人手動下載
-- `palserver-agent-<os>.tar.gz` —— 給自我更新用
-- `palserver-web.zip` —— 可獨立部署的前端
-- `SHA256SUMS.txt` —— 自我更新一定會驗證它
+- `palserver-agent-<os>.zip` —— 给用户手动下载
+- `palserver-agent-<os>.tar.gz` —— 给自我更新使用
+- `palserver-web.zip` —— 可独立部署的前端
+- `SHA256SUMS.txt` —— 自我更新一定会验证它
 
 ---
 
-## 現況
+## 现状
 
-**v2 目前是 alpha**(`2.0.0-alpha.0`)。上面列的功能都已經可用,但**還沒有發佈第一個 Release** ——
-在那之前請從原始碼建置(`pnpm release:exe`)。API 仍可能變動。
+**v2 目前是 alpha**（`2.0.0-alpha.0`）。上面列的功能都已经可用，但**还没有发布第一个 Release** ——
+在那之前请从源码构建（`pnpm release:exe`）。API 仍可能变动。
 
-尚未完成:多主機聚合管理;Docker 後端仍標示 beta(`images/modded` 尚未提供);PalDefender 的帕魯匯入規則等進階功能。
-規劃見 [TODO.md](TODO.md)。
+尚未完成：多主机聚合管理；Docker 后端仍标为 beta（`images/modded` 尚未提供）；PalDefender 的帕鲁导入规则等进阶功能。
+规划见 [TODO.md](TODO.md)。
 
-## 授權與連結
+## 授权与链接
 
-**[PolyForm Noncommercial 1.0.0](LICENSE.md)** —— 原始碼公開,個人與非商業用途可自由使用、
-修改與散布;**禁止任何商業/盈利用途**(販售本軟體、或把它包進付費服務等)。
-如需商業授權,請聯絡 <contact@iosoftware.ai>。
+**[PolyForm Noncommercial 1.0.0](LICENSE.md)** —— 源码公开，个人与非商业用途可自由使用、
+修改与分发；**禁止任何商业/盈利用途**（出售本软件，或把它打包进付费服务等）。
+如需商业授权，请联系 <contact@iosoftware.ai>。
 
 > *License: source-available under PolyForm Noncommercial 1.0.0 — free for personal and
 > noncommercial use; **commercial use is not permitted**. Contact us for commercial licensing.*
 
-- **官方網站:** <https://palserver-GUI.iosoftware.ai>
-- **常見問題:** <https://faq.toc.icu/>
-- **Discord:** <https://discord.gg/sgMMdUZd3V>
-- **安裝與連線教學(玩家向):** [docs/INSTALL.zh-TW.md](docs/INSTALL.zh-TW.md)
-- **存檔搬家:** [docs/MIGRATION.md](docs/MIGRATION.md)
-- **隱私權政策:** [PRIVACY.md](PRIVACY.md)
-- **v1(已停止維護):** <https://github.com/Dalufishe/palserver-GUI>
+- **官方网站：** <https://palserver-GUI.iosoftware.ai>
+- **常见问题：** <https://faq.toc.icu/>
+- **Discord：** <https://discord.gg/sgMMdUZd3V>
+- **安装与连接教程（玩家向）：** [docs/INSTALL.zh-TW.md](docs/INSTALL.zh-TW.md)
+- **存档迁移：** [docs/MIGRATION.md](docs/MIGRATION.md)
+- **隐私政策：** [PRIVACY.md](PRIVACY.md)
+- **v1（已停止维护）：** <https://github.com/Dalufishe/palserver-GUI>
 
-由 [Dalufish](https://github.com/Dalufishe) 與核心團隊用愛製作。
+由 [Dalufish](https://github.com/Dalufishe) 与核心团队用爱制作。

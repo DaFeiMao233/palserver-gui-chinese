@@ -22,22 +22,22 @@ Add-Type -AssemblyName System.Drawing
 
 $notify = New-Object System.Windows.Forms.NotifyIcon
 $notify.Icon = [System.Drawing.SystemIcons]::Application
-$notify.Text = 'palserver GUI 引擎運作中'
+$notify.Text = 'palserver GUI 软件运行中'
 $notify.Visible = $true
 
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 
-$open = $menu.Items.Add('打開管理介面')
+$open = $menu.Items.Add('打开 Web UI')
 $open.add_Click({ Start-Process $Url })
 
-$code = $menu.Items.Add('顯示配對碼')
+$code = $menu.Items.Add('显示配对码')
 $code.add_Click({
-  [System.Windows.Forms.MessageBox]::Show('配對碼:' + $Code + '  (在別的裝置連線時輸入)', 'palserver GUI') | Out-Null
+  [System.Windows.Forms.MessageBox]::Show('配对码:' + $Code + '  (在别的装置连线时输入)', 'palserver GUI') | Out-Null
 })
 
 $menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator)) | Out-Null
 
-$quit = $menu.Items.Add('結束 palserver GUI')
+$quit = $menu.Items.Add('关闭 palserver GUI')
 $quit.add_Click({
   $notify.Visible = $false
   Stop-Process -Id $AgentPid -Force

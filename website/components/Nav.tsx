@@ -30,7 +30,7 @@ export default function Nav({ d, lang }: { d: Dictionary['nav']; lang: Locale })
           </a>
           <a
             className="btn btn-p btn-sm"
-            href="https://github.com/io-software-ai/palserver-gui/releases"
+            href="https://github.com/DaFeiMao233/palserver-gui/releases"
           >
             {d.download}
           </a>

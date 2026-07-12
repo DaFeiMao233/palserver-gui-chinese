@@ -403,7 +403,7 @@ function PlayerMap({
    * (when showOffline) provides offline players' last-saved positions. */
   pdPlayers: PdPlayerSummary[];
   landmarks: Landmark[];
-  lang: "zh" | "en" | "ja";
+  lang: "zh" | "zh-cn" | "en" | "ja";
   showPlayers: boolean;
   showOffline: boolean;
   showBases: boolean;

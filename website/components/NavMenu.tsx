@@ -71,7 +71,7 @@ export default function NavMenu({ d, lang }: { d: Dictionary['nav']; lang: Local
         </a>
         <a
           className="btn btn-p"
-          href="https://github.com/io-software-ai/palserver-gui/releases"
+          href="https://github.com/DaFeiMao233/palserver-gui/releases"
           onClick={close}
         >
           {d.download}

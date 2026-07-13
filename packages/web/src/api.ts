@@ -18,6 +18,7 @@ import type {
   InstanceStats,
   InstanceSummary,
   KnownPlayer,
+  LaunchOptions,
   LicenseStatus,
   LiveStatus,
   LogSource,
@@ -25,7 +26,7 @@ import type {
   ModComponent,
   ModerationLists,
   ModsStatus,
-  PalDefenderConfig,
+  PalDefenderConfigPatch,
   PalDefenderConfigStatus,
   PalSchemaStatus,
   PalStatsStatus,
@@ -55,6 +56,30 @@ export interface TelemetryStatus {
   /** true = 被 PALSERVER_TELEMETRY=0 強制停用,GUI 開關無效。 */
   envDisabled: boolean;
   installId: string;
+}
+
+/** 系統/網路設定的單一欄位:目前生效值 + 是否被環境變數鎖定。 */
+export interface AgentSettingField<T> {
+  value: T;
+  envLocked: boolean;
+}
+export interface AgentSettingsStatus {
+  requireToken: AgentSettingField<boolean>;
+  tls: AgentSettingField<boolean>;
+  agentPort: AgentSettingField<number>;
+  agentHost: AgentSettingField<string>;
+  webOrigins: AgentSettingField<string>;
+  autoOpenBrowser: AgentSettingField<boolean>;
+  /** 免安裝執行檔可一鍵重啟;開發模式為 false(需手動重啟)。 */
+  canRestart: boolean;
+}
+export interface AgentSettingsPatch {
+  requireToken?: boolean;
+  tls?: boolean;
+  agentPort?: number;
+  agentHost?: string;
+  webOrigins?: string;
+  autoOpenBrowser?: boolean;
 }
 
 export interface ConfigSnapshotResult {
@@ -182,6 +207,18 @@ export class AgentClient {
     return this.request("/api/telemetry", { method: "PUT", body: JSON.stringify({ enabled }) });
   }
 
+  /** 系統 / 網路設定(對應 GET/PUT /api/settings)。改動寫進 agent 的 settings.json,重啟後生效。 */
+  agentSettings(): Promise<AgentSettingsStatus> {
+    return this.request("/api/settings");
+  }
+  saveAgentSettings(patch: AgentSettingsPatch): Promise<{ ok: boolean }> {
+    return this.request("/api/settings", { method: "PUT", body: JSON.stringify(patch) });
+  }
+  /** 重啟 agent 以套用系統設定;restarting=false 表示開發模式,需手動重啟。 */
+  restartAgent(): Promise<{ restarting: boolean }> {
+    return this.request("/api/restart", { method: "POST", body: JSON.stringify({}) });
+  }
+
   /** 贊助者識別碼(先行版授權)狀態。 */
   license(): Promise<LicenseStatus> {
     return this.request("/api/license");
@@ -193,6 +230,11 @@ export class AgentClient {
 
   clearLicense(): Promise<LicenseStatus> {
     return this.request("/api/license", { method: "DELETE" });
+  }
+
+  /** 日誌翻譯(log-tools):套不了版的英文行走 agent 代理 Google Translate,tl=目標語碼。 */
+  translate(text: string, tl: string): Promise<{ text: string; error?: string }> {
+    return this.request(`/api/translate?q=${encodeURIComponent(text)}&tl=${encodeURIComponent(tl)}`);
   }
 
   listInstances(): Promise<InstanceSummary[]> {
@@ -308,6 +350,14 @@ export class AgentClient {
     });
   }
 
+  /** 傳送玩家(贊助者先行版):target = 目標玩家 UserId 或座標「x y」。非贊助者回 403。 */
+  teleport(id: string, source: string, target: string): Promise<{ output: string }> {
+    return this.request(`/api/instances/${id}/teleport`, {
+      method: "POST",
+      body: JSON.stringify({ source, target }),
+    });
+  }
+
   live(id: string): Promise<LiveStatus> {
     return this.request(`/api/instances/${id}/live`);
   }
@@ -416,7 +466,7 @@ export class AgentClient {
     return this.request(`/api/instances/${id}/paldefender-config`);
   }
 
-  updatePalDefenderConfig(id: string, patch: PalDefenderConfig): Promise<PalDefenderConfigStatus> {
+  updatePalDefenderConfig(id: string, patch: PalDefenderConfigPatch): Promise<PalDefenderConfigStatus> {
     return this.request(`/api/instances/${id}/paldefender-config`, {
       method: "PUT",
       body: JSON.stringify(patch),
@@ -499,6 +549,20 @@ export class AgentClient {
     return this.request(`/api/instances/${id}/engine-settings`, {
       method: "PUT",
       body: JSON.stringify(values),
+    });
+  }
+
+  launchOptions(id: string): Promise<{ launchOptions: LaunchOptions; queryPort: number | null }> {
+    return this.request(`/api/instances/${id}/launch-options`);
+  }
+
+  updateLaunchOptions(
+    id: string,
+    patch: { launchOptions?: LaunchOptions; queryPort?: number | null },
+  ): Promise<{ launchOptions: LaunchOptions; queryPort: number | null; applied: string }> {
+    return this.request(`/api/instances/${id}/launch-options`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
     });
   }
 

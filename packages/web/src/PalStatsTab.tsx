@@ -19,7 +19,7 @@ import type { AgentClient } from "./api";
 import { EntityPicker } from "./EntityPicker";
 import { useGameData, palIconUrl, displayName } from "./gameData";
 import { t, useI18n } from "./i18n";
-import { btn, btnGhost, card, errorCls, inputCls } from "./ui";
+import { btn, btnGhost, card, errorCls, inputCls, DismissibleWarning } from "./ui";
 
 /** 空字串 = 不覆寫(維持既有值 / 交給 PalSchema 原始預設)。 */
 function numOrUndef(v: string): number | undefined {
@@ -242,14 +242,16 @@ export function PalStatsTab({ client, instanceId }: { client: AgentClient; insta
               "透過社群開發的 PalSchema mod 修改物種基礎數值(HP / 近戰攻擊 / 遠程攻擊 / 防禦 / 移速 / 捕獲率等),改動寫在 DataTable patch,不動存檔本身。",
             )}
           </p>
-          <p className="inline-flex items-start gap-2 rounded-xl border-2 border-sun/40 bg-sun/10 px-3 py-2 text-[13px] text-sun">
-            <FiAlertTriangle className="mt-0.5 size-4 shrink-0" />
-            <span>
-              {t(
-                "風險提示:PalSchema 為社群 mod、僅支援 Windows(native)伺服器,且依賴特定版本的 UE4SS(改版後可能暫時失效);安裝或調整數值前建議先備份存檔。",
-              )}
+          <DismissibleWarning id="warn-palstats-risk">
+            <span className="inline-flex items-start gap-2">
+              <FiAlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <span>
+                {t(
+                  "風險提示:PalSchema 為社群 mod、僅支援 Windows(native)伺服器,且依賴特定版本的 UE4SS(改版後可能暫時失效);安裝或調整數值前建議先備份存檔。",
+                )}
+              </span>
             </span>
-          </p>
+          </DismissibleWarning>
           {status.reason && <p className="text-[13px] text-sun">{status.reason}</p>}
           <div className={locked ? "pointer-events-none w-fit opacity-55" : "w-fit"}>
             <button

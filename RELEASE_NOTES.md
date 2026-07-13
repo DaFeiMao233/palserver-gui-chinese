@@ -1,47 +1,67 @@
-# palserver GUI — v2.0.0-alpha.5
+# palserver GUI — v2.0.3
 
-修正版:讓**同一台主機開多台伺服器**不再因為 Steam 查詢埠衝突而開不起來。
+手機 / 平板可用(響應式)· 安全與網路設定搬進面板 · 大量遊戲資料補漏
+Works on phone / tablet (responsive) · security & network settings in the panel · big game-data update
+スマホ / タブレット対応(レスポンシブ)· セキュリティ / ネットワーク設定をパネルに · ゲームデータ大幅補完
 
-## 🐛 這版修正了什麼
-
-- **同機多開第二台就崩** —— 每台 Palworld 伺服器的 Steam 查詢埠都預設 27015,而這個埠**不寫在 PalWorldSettings.ini 裡**,所以即使你把遊戲埠、REST、RCON 都設成不同值,第二台還是會卡在:
-
-  ```
-  CreateBoundSocket: ::bind couldn't find an open port between 27015 and 27015
-  ```
-
-  現在每台實例會**自動分配唯一的查詢埠**(從 27015 往上找沒被占用的),並透過兩個管道套用(命令列 `-queryport` + Engine.ini 的 `GameServerQueryPort`,雙保險)。**既有的實例**在更新後也會自動補上、下次啟動即生效,不用手動改設定。
-
-> 只影響原生(native)在同一台主機開多台的情境;單台或分散在不同主機不受影響。
-
-完整 commit 紀錄:[`v2.0.0-alpha.4...v2.0.0-alpha.5`](https://github.com/io-software-ai/palserver-gui/compare/v2.0.0-alpha.4...v2.0.0-alpha.5)
-
----
-
-## 下載哪一個?
-
-大部分人只要看你電腦對應的那一列就好。解壓縮後**雙擊 `palserver-agent`**,
-瀏覽器會自動打開管理介面,不用先裝 Node、不用 Docker、不用打指令。
-
-| 你的電腦 | 下載這個 | 說明 |
-| --- | --- | --- |
-| **Windows** | **`palserver-agent-windows.zip`** | 最多人用,雙擊即可 |
-| **Linux** | `palserver-agent-linux.zip` | 同上 |
-| **macOS** | `palserver-agent-macos.zip` | Mac 不能實際開帕魯伺服器(限制),只能拿來管理別台遠端主機 |
-
-> 這三個都是「合一版」:免安裝執行檔 **+** 網頁介面,一個檔案搞定,適合自己開服。
+> 這版有介面與 agent 的程式更新,需要新的執行檔:有開自動更新會自己抓,或依下方手動下載。
+> This release changes both the UI and the agent, so it needs the new build — the in-app updater will fetch it, or download below.
+> 今回は UI と agent 両方の更新のため新しいビルドが必要です。自動更新が有効なら自動取得、または下記から手動でどうぞ。
 
 <details>
-<summary>其他檔案是什麼?(進階,新手可以直接略過)</summary>
+<summary><b>🇹🇼 中文更新說明</b></summary>
 
-- **`palserver-web.zip`** — 只有「網頁介面」、不含 agent。要把管理網頁自己架到公開網站(例如 Zeabur)給大家線上用時才需要。
-- **`*.tar.gz`** — 內容和對應的 `.zip` 一樣,但這是給 agent「一鍵自我更新」讀的格式。**手動下載請用 `.zip`。**
-- **`SHA256SUMS.txt`** — 檔案校驗碼,自我更新時會自動比對防止下載損毀,一般玩家可以忽略。
+- **手機 / 平板可用(響應式)** — 整個管理介面重新設計成 RWD,窄螢幕不再爆版:導覽列自動收合、彈窗可捲動、資料列自動換行。
+- **安全 / 網路設定搬進面板** — 以前只能靠環境變數(`PALSERVER_TLS` 等),現在直接在設定頁改:強制 token、HTTPS/TLS、監聽埠與位址、跨源公開站來源;改完可一鍵重啟套用(被環境變數鎖定的欄位會顯示為唯讀)。
+- **開機自動開瀏覽器** — 新增開關,可自行決定 agent 啟動時要不要自動打開管理介面。
+- **設定更順手** — 常駐的黃色提醒與總覽卡片都能按 X 收起,並在設定的「卡片隱藏」統一恢復;主題 / 更新 / 贊助者識別碼移到上方;「伺服器檔案」瀏覽器移到設定頁最上方。
+- **遊戲資料大補漏** — 補齊 268 個先前遺漏的物品(藥師島裝備、世界樹 / 覺醒素材、新彈藥、遠古護甲、飾品、藍圖等)。
+
+</details>
+
+<details>
+<summary><b>🇬🇧 English</b></summary>
+
+- **Works on phone / tablet (responsive)** — the whole panel was redesigned for small screens: the nav wraps, dialogs scroll, and data rows reflow instead of overflowing.
+- **Security & network settings in the panel** — what used to require env vars (`PALSERVER_TLS`, etc.) is now editable in Settings: force-token, HTTPS/TLS, listen port & host, cross-origin web origins — with one-click restart to apply (fields locked by an env var show as read-only).
+- **Open browser on startup** — a new toggle to control whether the agent opens the panel automatically when it starts.
+- **Smoother settings** — dismiss the yellow notices and Overview cards with an ×, and restore them under "Hidden cards" in Settings; theme / update / sponsor code moved up; the "Server files" browser moved to the top of Settings.
+- **Big game-data update** — added 268 previously-missing items (Yakushima gear, World Tree / awakening materials, new ammo, ancient armor, accessories, blueprints, and more).
+
+</details>
+
+<details>
+<summary><b>🇯🇵 日本語</b></summary>
+
+- **スマホ / タブレット対応(レスポンシブ)** — パネル全体を小画面向けに再設計:ナビは折り返し、ダイアログはスクロール、データ行は溢れずに回り込みます。
+- **セキュリティ / ネットワーク設定をパネルに** — これまで環境変数(`PALSERVER_TLS` など)が必要だった項目を設定画面で編集可能に:トークン強制、HTTPS/TLS、待受ポート / アドレス、クロスオリジンの公開元 — ワンクリック再起動で反映(環境変数でロックされた項目は読み取り専用表示)。
+- **起動時にブラウザを開く** — agent 起動時にパネルを自動で開くかを選べるトグルを追加。
+- **設定まわりを改善** — 黄色のお知らせと概要カードは × で閉じられ、設定の「カード・お知らせの非表示」からまとめて再表示;テーマ / 更新 / スポンサーコードを上部へ移動;「サーバーファイル」ブラウザを設定の最上部へ。
+- **ゲームデータ大幅補完** — 抜けていた 268 個のアイテム(薬師島装備、ワールドツリー / 覚醒素材、新弾薬、古代の防具、アクセサリー、設計図など)を追加。
+
 </details>
 
 ---
 
-首次安裝會下載較大的帕魯伺服器檔案、需要一點時間,屬正常現象。
-安裝與連線教學見 [玩家版指南](https://github.com/io-software-ai/palserver-gui/blob/main/docs/INSTALL.zh-TW.md);有問題歡迎到 [Discord](https://discord.gg/sgMMdUZd3V) 找我們。
+## ⬇️ 下載 / Download / ダウンロード
 
-> 免費開源,僅限非商業使用(PolyForm Noncommercial)。
+解壓縮後雙擊 **`palserver-agent`** 即可(免裝 Node / Docker)· Unzip and double-click **`palserver-agent`**.
+
+| 你的電腦 / OS | 下載 / File |
+| --- | --- |
+| **Windows** | **`palserver-agent-windows.zip`** |
+| **Linux** | `palserver-agent-linux.zip` |
+| **macOS**(僅遠端管理 / manage remote only) | `palserver-agent-macos.zip` |
+
+安裝教學 / Setup → [中文指南](https://github.com/io-software-ai/palserver-gui/blob/main/docs/INSTALL.zh-TW.md) · 有問題來 [Discord](https://discord.gg/sgMMdUZd3V)
+
+<details>
+<summary>其他檔案 / Other files</summary>
+
+- **`palserver-web.zip`** — 只有網頁介面(自架公開站用)/ web UI only, for hosting the panel publicly.
+- **`*.tar.gz`** — agent 自我更新用的格式 / for the in-app self-updater. 手動下載請用 `.zip`.
+- **`SHA256SUMS.txt`** — 檔案校驗碼 / checksums (used by the self-updater).
+
+</details>
+
+> 免費開源,僅限非商業使用(PolyForm Noncommercial)· Free & open source, non-commercial use only.

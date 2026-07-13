@@ -8,7 +8,7 @@ import {
   FiUserCheck,
   FiUserX,
 } from "react-icons/fi";
-import { SteamId } from "./SteamId";
+import { SteamId, maskSteamId } from "./SteamId";
 import { useGameData, palIconUrl, type GameData } from "./gameData";
 import { PlayerDetailModal } from "./PlayerDetailModal";
 import { PlayerActionsMenu } from "./PlayerActionsMenu";
@@ -397,7 +397,7 @@ function KnownPlayersCard({
                   client={client}
                   instanceId={instanceId}
                   userId={p.userId}
-                  displayLabel={p.name || p.userId}
+                  displayLabel={p.name || maskSteamId(p.userId)}
                 />
               </div>
             );
@@ -442,9 +442,9 @@ function ModerationCard({
         ) : (
           <div className="flex flex-col divide-y divide-line">
             {moderation.whitelist.map((w) => (
-              <div key={w.value} className="flex items-center justify-between gap-3 px-5 py-2.5">
+              <div key={w.value} className="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5">
                 {w.isIp ? (
-                  <span className="font-mono text-xs break-all">IP {w.value}</span>
+                  <span className="min-w-0 font-mono text-xs break-all">IP {w.value}</span>
                 ) : (
                   <SteamId userId={w.value} />
                 )}
@@ -472,7 +472,7 @@ function ModerationCard({
         ) : (
           <div className="flex flex-col divide-y divide-line">
             {moderation.bans.map((b, i) => (
-              <div key={`${b.userId ?? b.ip}-${i}`} className="flex items-center justify-between gap-3 px-5 py-2.5">
+              <div key={`${b.userId ?? b.ip}-${i}`} className="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5">
                 <div className="min-w-0">
                   {b.userId ? (
                     <SteamId userId={b.userId} />

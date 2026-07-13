@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
-import { FiX, FiCopy, FiCheck, FiRefreshCw, FiSmartphone, FiKey, FiWifi, FiTrash2, FiStar, FiEye, FiEyeOff, FiSun } from "react-icons/fi";
+import { FiX, FiCopy, FiCheck, FiRefreshCw, FiSmartphone, FiKey, FiWifi, FiTrash2, FiStar, FiEye, FiEyeOff, FiSun, FiShield } from "react-icons/fi";
 import type { LicenseStatus } from "@palserver/shared";
-import type { AgentClient, Connection, TelemetryStatus } from "./api";
+import type { AgentClient, Connection, TelemetryStatus, AgentSettingsStatus, AgentSettingsPatch } from "./api";
 import { copyText } from "./clipboard";
 import { PrivacyModal } from "./PrivacyModal";
 import { UpdateCard } from "./UpdateCard";
 import { useI18n } from "./i18n";
 import { SHOW_SPONSOR_FEATURES } from "./flags";
 import { ThemePicker } from "./ThemePicker";
-import { Overlay, card, btn, btnGhost } from "./ui";
+import { Overlay, card, btn, btnGhost, inputCls } from "./ui";
 
 /**
  * 設定頁:主要用來在「其他裝置」連進這台 agent —— 顯示配對碼、以及各個可連位址
@@ -163,47 +163,6 @@ export function SettingsModal({
           </div>
         </div>
 
-        {/* 進階:API token */}
-        <div className="border-t border-line pt-3">
-          <button
-            className="inline-flex items-center gap-1.5 text-[13px] font-bold text-ink-muted hover:text-ink"
-            onClick={() => setShowToken((v) => !v)}
-          >
-            <FiKey className="size-4" /> {t("進階:API token(自動化用)")}
-          </button>
-          {showToken &&
-            (conn.token ? (
-              <div className="mt-2">
-                <Copyable text={conn.token} mono />
-              </div>
-            ) : (
-              <p className="mt-2 rounded-xl bg-card-soft px-3 py-2 text-xs text-ink-muted">
-                {t("你目前是本機免密碼連線,手上沒有 token。API token 顯示在 agent 啟動的視窗裡(標示「API token」那行)。")}
-              </p>
-            ))}
-        </div>
-
-        {/* 外觀主題 */}
-        <div className="border-t border-line pt-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="text-sm font-extrabold">{t("外觀主題")}</h3>
-              <p className="mt-1 text-xs text-ink-muted">
-                {t("深 / 淺色與主題風格。白銀、翡翠為贊助者專屬。")}
-              </p>
-            </div>
-            <button
-              className={`${btnGhost} inline-flex shrink-0 items-center gap-1.5`}
-              onClick={() => setShowThemes(true)}
-            >
-              <FiSun className="size-4" /> {t("選擇主題")}
-            </button>
-          </div>
-        </div>
-
-        {/* GUI 自我更新(對接 GitHub Releases) */}
-        <UpdateCard client={client} />
-
         {/* 贊助者識別碼(先行版)—— 未公布前用 SHOW_SPONSOR_FEATURES 隱藏 */}
         {SHOW_SPONSOR_FEATURES && lic && (
           <div className="border-t border-line pt-3">
@@ -254,6 +213,50 @@ export function SettingsModal({
             )}
           </div>
         )}
+
+        {/* 外觀主題 */}
+        <div className="border-t border-line pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="text-sm font-extrabold">{t("外觀主題")}</h3>
+              <p className="mt-1 text-xs text-ink-muted">
+                {t("深 / 淺色與主題風格。白銀、翡翠為贊助者專屬。")}
+              </p>
+            </div>
+            <button
+              className={`${btnGhost} inline-flex shrink-0 items-center gap-1.5`}
+              onClick={() => setShowThemes(true)}
+            >
+              <FiSun className="size-4" /> {t("選擇主題")}
+            </button>
+          </div>
+        </div>
+
+        {/* GUI 自我更新(對接 GitHub Releases) */}
+        <UpdateCard client={client} />
+
+        {/* 進階:API token */}
+        <div className="border-t border-line pt-3">
+          <button
+            className="inline-flex items-center gap-1.5 text-[13px] font-bold text-ink-muted hover:text-ink"
+            onClick={() => setShowToken((v) => !v)}
+          >
+            <FiKey className="size-4" /> {t("進階:API token(自動化用)")}
+          </button>
+          {showToken &&
+            (conn.token ? (
+              <div className="mt-2">
+                <Copyable text={conn.token} mono />
+              </div>
+            ) : (
+              <p className="mt-2 rounded-xl bg-card-soft px-3 py-2 text-xs text-ink-muted">
+                {t("你目前是本機免密碼連線,手上沒有 token。API token 顯示在 agent 啟動的視窗裡(標示「API token」那行)。")}
+              </p>
+            ))}
+        </div>
+
+        {/* 安全 / 網路設定(進階,可折疊) */}
+        <SecuritySettings client={client} />
 
         {/* 匿名使用統計 */}
         {telemetry && (
@@ -318,6 +321,207 @@ export function SettingsModal({
 }
 
 /** 把 worker 回的無效原因碼轉成友善說明。 */
+/** 可折疊的「安全 / 網路設定」:對應 agent 的 /api/settings。改動寫進 settings.json,重啟後生效;
+ *  由環境變數設定的欄位以環境變數為準、灰化不可改(env > settings.json)。 */
+function SecuritySettings({ client }: { client: AgentClient }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const [st, setSt] = useState<AgentSettingsStatus | null>(null);
+  const [form, setForm] = useState<AgentSettingsPatch>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+
+  useEffect(() => {
+    if (!open || st) return;
+    client
+      .agentSettings()
+      .then((s) => {
+        setSt(s);
+        setForm({
+          requireToken: s.requireToken.value,
+          tls: s.tls.value,
+          agentPort: s.agentPort.value,
+          agentHost: s.agentHost.value,
+          webOrigins: s.webOrigins.value,
+          autoOpenBrowser: s.autoOpenBrowser.value,
+        });
+      })
+      .catch(() => {});
+  }, [open, st, client]);
+
+  const set = (patch: Partial<AgentSettingsPatch>) => {
+    setForm((f) => ({ ...f, ...patch }));
+    setSaved(false);
+  };
+
+  const save = async () => {
+    if (!st) return;
+    setSaving(true);
+    try {
+      const p: AgentSettingsPatch = {};
+      if (!st.requireToken.envLocked) p.requireToken = !!form.requireToken;
+      if (!st.tls.envLocked) p.tls = !!form.tls;
+      if (!st.agentPort.envLocked) p.agentPort = Number(form.agentPort) || 8250;
+      if (!st.agentHost.envLocked) p.agentHost = (form.agentHost ?? "").trim() || "0.0.0.0";
+      if (!st.webOrigins.envLocked) p.webOrigins = (form.webOrigins ?? "").trim();
+      if (!st.autoOpenBrowser.envLocked) p.autoOpenBrowser = !!form.autoOpenBrowser;
+      await client.saveAgentSettings(p);
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const restart = async () => {
+    setRestarting(true);
+    try {
+      await client.restartAgent();
+    } catch {
+      setRestarting(false);
+    }
+  };
+
+  const lock = (locked: boolean) =>
+    locked ? <span className="ml-1.5 text-[11px] font-bold text-ink-muted">{t("(由環境變數鎖定)")}</span> : null;
+
+  return (
+    <div className="border-t border-line pt-3">
+      <button
+        className="inline-flex items-center gap-1.5 text-[13px] font-bold text-ink-muted hover:text-ink"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <FiShield className="size-4" /> {t("安全 / 網路設定(進階)")}
+      </button>
+
+      {open && st && (
+        <div className="mt-3 flex flex-col gap-3">
+          <p className="rounded-xl bg-card-soft px-3 py-2 text-xs text-ink-muted">
+            {t("改動需重啟 agent 才生效。由環境變數設定的項目以環境變數為準,無法在此修改。")}
+          </p>
+
+          <label className={`flex items-start gap-2.5 ${st.autoOpenBrowser.envLocked ? "opacity-50" : "cursor-pointer"}`}>
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 accent-pal"
+              checked={!!form.autoOpenBrowser}
+              disabled={st.autoOpenBrowser.envLocked}
+              onChange={(e) => set({ autoOpenBrowser: e.target.checked })}
+            />
+            <span className="text-[13px]">
+              <b className="font-bold">{t("開機時自動開啟瀏覽器")}</b>
+              {lock(st.autoOpenBrowser.envLocked)}
+              <span className="block text-xs text-ink-muted">
+                {t("agent 啟動時自動打開管理介面(下次啟動生效)。放伺服器的機器沒有螢幕時可關掉。")}
+              </span>
+            </span>
+          </label>
+
+          <label className={`flex items-start gap-2.5 ${st.requireToken.envLocked ? "opacity-50" : "cursor-pointer"}`}>
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 accent-pal"
+              checked={!!form.requireToken}
+              disabled={st.requireToken.envLocked}
+              onChange={(e) => set({ requireToken: e.target.checked })}
+            />
+            <span className="text-[13px]">
+              <b className="font-bold">{t("強制要求識別碼(本機也要)")}</b>
+              {lock(st.requireToken.envLocked)}
+              <span className="block text-xs text-ink-muted">
+                {t("透過 Cloudflare Tunnel / 反向代理對外曝露時務必開啟,否則任何連得到的人都能無密碼管理。")}
+              </span>
+            </span>
+          </label>
+
+          <label className={`flex items-start gap-2.5 ${st.tls.envLocked ? "opacity-50" : "cursor-pointer"}`}>
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 accent-pal"
+              checked={!!form.tls}
+              disabled={st.tls.envLocked}
+              onChange={(e) => set({ tls: e.target.checked })}
+            />
+            <span className="text-[13px]">
+              <b className="font-bold">{t("以 HTTPS 監聽")}</b>
+              {lock(st.tls.envLocked)}
+              <span className="block text-xs text-ink-muted">
+                {t("自簽憑證會自動生成於 data-dir/tls;也可放自己的憑證進去。")}
+              </span>
+            </span>
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className={`flex flex-col gap-1 ${st.agentPort.envLocked ? "opacity-50" : ""}`}>
+              <span className="text-xs font-bold text-ink-muted">
+                {t("監聽埠")}
+                {lock(st.agentPort.envLocked)}
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={65535}
+                className={inputCls}
+                value={form.agentPort ?? 8250}
+                disabled={st.agentPort.envLocked}
+                onChange={(e) => set({ agentPort: Number(e.target.value) })}
+              />
+            </label>
+            <label className={`flex flex-col gap-1 ${st.agentHost.envLocked ? "opacity-50" : ""}`}>
+              <span className="text-xs font-bold text-ink-muted">
+                {t("監聽位址")}
+                {lock(st.agentHost.envLocked)}
+              </span>
+              <input
+                type="text"
+                className={`${inputCls} font-mono`}
+                value={form.agentHost ?? ""}
+                disabled={st.agentHost.envLocked}
+                placeholder="0.0.0.0"
+                onChange={(e) => set({ agentHost: e.target.value })}
+              />
+            </label>
+          </div>
+
+          <label className={`flex flex-col gap-1 ${st.webOrigins.envLocked ? "opacity-50" : ""}`}>
+            <span className="text-xs font-bold text-ink-muted">
+              {t("允許的公開站來源(逗號分隔;純 web 版才需要)")}
+              {lock(st.webOrigins.envLocked)}
+            </span>
+            <input
+              type="text"
+              className={`${inputCls} font-mono`}
+              value={form.webOrigins ?? ""}
+              disabled={st.webOrigins.envLocked}
+              placeholder="https://panel.example.com"
+              onChange={(e) => set({ webOrigins: e.target.value })}
+            />
+          </label>
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button className={`${btn} inline-flex items-center gap-1.5`} onClick={save} disabled={saving}>
+              {saving ? t("儲存中…") : t("儲存")}
+            </button>
+            {saved &&
+              (st.canRestart ? (
+                <button
+                  className={`${btnGhost} inline-flex items-center gap-1.5`}
+                  onClick={restart}
+                  disabled={restarting}
+                >
+                  <FiRefreshCw className="size-4" /> {restarting ? t("重啟中…") : t("重啟 agent 套用")}
+                </button>
+              ) : (
+                <span className="text-xs font-bold text-sun">{t("已儲存,請手動重啟 agent 才會生效。")}</span>
+              ))}
+            {saved && st.canRestart && <span className="text-xs font-bold text-grass">{t("已儲存")}</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function licReason(t: (s: string) => string, reason: string | null): string {
   switch (reason) {
     case "invalid":

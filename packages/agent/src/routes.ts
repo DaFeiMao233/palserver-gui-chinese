@@ -2,11 +2,16 @@ import type { FastifyInstance } from "fastify";
 import {
   COMMANDS,
   ENGINE_OPTIONS,
+  LAUNCH_OPTIONS,
+  LAUNCH_OPTION_KEYS,
+  type LaunchOptions,
   PALDEFENDER_OPTIONS,
+  PD_MOTD_MAX_LEN,
+  PD_MOTD_MAX_LINES,
   PAL_STAT_KEYS,
   PAL_STAT_OPTIONS,
   type EngineSettings,
-  type PalDefenderConfig,
+  type PalDefenderConfigPatch,
   type PalStatValues,
   CreateInstanceSchema,
   CustomPalSchema,
@@ -23,7 +28,9 @@ import { fetchServerCommands, rconExec, requireRcon } from "./rcon.js";
 import type { PresenceTracker } from "./presence.js";
 import type { BackupScheduler } from "./backup-scheduler.js";
 import type { RestartSupervisor } from "./supervisor.js";
-import { AGENT_VERSION } from "./env.js";
+import { AGENT_VERSION, PORT, HOST, REQUIRE_TOKEN, WEB_ORIGINS, TLS_ENABLED, OPEN_BROWSER, ENV_LOCKED, IS_PORTABLE_EXE } from "./env.js";
+import { saveSettings } from "./settings.js";
+import { restartSelf } from "./self-update.js";
 import {
   type AuthContext,
   extractToken,
@@ -179,11 +186,12 @@ export function registerRoutes(
       instanceCount: store.list().length,
       authenticated,
       platform: process.platform,
-      // docker:看 Docker 是否真的連得上(Docker Desktop 讓 macOS/Windows 也能跑),
-      // 而非以平台判斷;k8s:遙控叢集內的 StatefulSet,與 agent 這台的 OS 無關,一律提供。
-      availableBackends: dockerVersion !== "unavailable"
-        ? ["native", "docker", "k8s"]
-        : ["native", "k8s"],
+      // docker 在 Unix 系統（Linux/macOS）提供；Windows WSL2 的 UDP 不可靠，
+      // 不能跑遊戲伺服器。所有平台都可管理遠端 k8s 實例。
+      availableBackends:
+        process.platform !== "win32" && dockerVersion !== "unavailable"
+          ? ["native", "docker", "k8s"]
+          : ["native", "k8s"],
     };
   });
 
@@ -191,6 +199,35 @@ export function registerRoutes(
   app.get("/api/update", async (req) => {
     const force = (req.query as { force?: string }).force === "1";
     return getUpdateStatus(force);
+  });
+
+  // 日誌翻譯(贊助者功能 log-tools)。套不了版的英文行(info/warning)走這裡翻成使用者語言。
+  // 放 agent 端打(server-side)避開瀏覽器 CORS、免自備 API key;結果記憶體快取,同行不重複。
+  const translateCache = new Map<string, string>();
+  app.get("/api/translate", async (req) => {
+    const { q, tl } = req.query as { q?: string; tl?: string };
+    const text = (q ?? "").slice(0, 2000);
+    const target = (tl ?? "en").replace(/[^a-zA-Z-]/g, "").slice(0, 8) || "en";
+    if (!text.trim()) return { text: "" };
+    const key = `${target}\n${text}`;
+    const hit = translateCache.get(key);
+    if (hit !== undefined) return { text: hit };
+    try {
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(target)}&dt=t&q=${encodeURIComponent(text)}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) return { text: "", error: `HTTP ${res.status}` };
+      const data: unknown = await res.json();
+      // 回應結構:[ [ [譯文, 原文, …], … ], … ];把第一維各段的譯文接起來。
+      const rows = Array.isArray(data) && Array.isArray(data[0]) ? (data[0] as unknown[]) : [];
+      const out = rows
+        .map((seg) => (Array.isArray(seg) && typeof seg[0] === "string" ? seg[0] : ""))
+        .join("");
+      if (translateCache.size > 2000) translateCache.clear();
+      translateCache.set(key, out);
+      return { text: out };
+    } catch (e) {
+      return { text: "", error: e instanceof Error ? e.message : String(e) };
+    }
   });
 
   app.put("/api/update/prefs", async (req) => {
@@ -229,6 +266,42 @@ export function registerRoutes(
   app.put("/api/telemetry", async (req) => {
     const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
     return setTelemetryEnabled(enabled);
+  });
+
+  // 系統 / 網路設定:可從面板改,寫進 data-dir/settings.json,重啟 agent 後生效。
+  // 每欄 envLocked=true 表示被環境變數鎖定(env > settings.json),面板顯示為灰化不可改。
+  app.get("/api/settings", async () => ({
+    requireToken: { value: REQUIRE_TOKEN, envLocked: ENV_LOCKED.requireToken },
+    tls: { value: TLS_ENABLED, envLocked: ENV_LOCKED.tls },
+    agentPort: { value: PORT, envLocked: ENV_LOCKED.agentPort },
+    agentHost: { value: HOST, envLocked: ENV_LOCKED.agentHost },
+    webOrigins: { value: WEB_ORIGINS.join(","), envLocked: ENV_LOCKED.webOrigins },
+    autoOpenBrowser: { value: OPEN_BROWSER, envLocked: ENV_LOCKED.autoOpenBrowser },
+    canRestart: IS_PORTABLE_EXE,
+  }));
+  app.put("/api/settings", async (req) => {
+    const b = z
+      .object({
+        requireToken: z.boolean().optional(),
+        tls: z.boolean().optional(),
+        agentPort: z.number().int().min(1).max(65535).optional(),
+        agentHost: z.string().max(64).optional(),
+        webOrigins: z.string().max(2000).optional(),
+        autoOpenBrowser: z.boolean().optional(),
+      })
+      .parse(req.body);
+    saveSettings(b);
+    return { ok: true };
+  });
+  // 套用系統設定:重啟自己(免安裝執行檔才會真的重啟;開發模式回 restarting:false)。
+  app.post("/api/restart", async () => {
+    if (IS_PORTABLE_EXE) {
+      setTimeout(() => {
+        void app.close().catch(() => {});
+        restartSelf();
+      }, 400);
+    }
+    return { restarting: IS_PORTABLE_EXE };
   });
 
   // 贊助者識別碼(先行版授權):填碼 -> 立即向 worker 啟用/驗證;一碼綁一台。
@@ -920,6 +993,32 @@ export function registerRoutes(
     return { output };
   });
 
+  // 傳送玩家(贊助者先行版 teleport):PalDefender `tp <來源> <目標玩家|x y z>`。
+  app.post("/api/instances/:id/teleport", async (req, reply) => {
+    if (!featureEnabled("teleport")) {
+      return reply
+        .code(403)
+        .send({ error: "此功能為贊助者先行版,請在設定頁輸入贊助者識別碼解鎖。" });
+    }
+    const rec = getOr404((req.params as { id: string }).id);
+    if (rec.backend !== "native") {
+      return reply.code(409).send({ error: "傳送玩家目前僅支援原生模式的實例" });
+    }
+    if (!getModsStatus(rec, ctxOf(rec)).paldefender.installed) {
+      return reply.code(409).send({ error: "需要先安裝 PalDefender 才能使用傳送" });
+    }
+    requireRcon(rec);
+    const { source, target } = z
+      .object({
+        source: z.string().trim().regex(/^[A-Za-z0-9_]+$/).max(128),
+        // 目標:玩家 UserId 或座標「x y [z]」(允許數字、負號、小數、空白)。
+        target: z.string().trim().min(1).max(128).regex(/^[A-Za-z0-9_.\- ]+$/),
+      })
+      .parse(req.body);
+    const output = await rconExec(rec, `tp ${source} ${target}`);
+    return { output };
+  });
+
   // ── PalDefender Config.json ──
   app.get("/api/instances/:id/paldefender-config", async (req) => {
     const rec = getOr404((req.params as { id: string }).id);
@@ -935,8 +1034,14 @@ export function registerRoutes(
         return [key, num.min(meta.min).max(meta.max).optional()];
       }),
     );
-    const patch = z.object(shape).strict().parse(req.body);
-    const status = writePalDefenderConfig(rec, ctxOf(rec), patch as PalDefenderConfig);
+    const patch = z
+      .object({
+        ...shape,
+        motd: z.array(z.string().max(PD_MOTD_MAX_LEN)).max(PD_MOTD_MAX_LINES).optional(),
+      })
+      .strict()
+      .parse(req.body);
+    const status = writePalDefenderConfig(rec, ctxOf(rec), patch as PalDefenderConfigPatch);
     // Try to hot-apply without a restart; harmless if RCON is off.
     await rconExec(rec, "reloadcfg").catch(() => {});
     return { ...status, applied: "reloaded" };
@@ -1082,6 +1187,57 @@ export function registerRoutes(
     return { ...status, applied: "on-next-restart" };
   });
 
+  // ── 命令列啟動參數(launch options)+ Steam 查詢埠 ──
+  app.get("/api/instances/:id/launch-options", async (req) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    return { launchOptions: rec.launchOptions ?? {}, queryPort: rec.queryPort ?? null };
+  });
+
+  app.put("/api/instances/:id/launch-options", async (req, reply) => {
+    const rec = getOr404((req.params as { id: string }).id);
+    const loShape = Object.fromEntries(
+      LAUNCH_OPTION_KEYS.map((k) => {
+        const meta = LAUNCH_OPTIONS[k];
+        if (meta.type === "bool") return [k, z.boolean().optional()];
+        if (meta.type === "int") {
+          return [k, z.number().int().min(meta.min ?? 0).max(meta.max ?? 1_000_000).optional()];
+        }
+        return [k, z.enum(meta.choices as unknown as [string, ...string[]]).optional()];
+      }),
+    );
+    const body = z
+      .object({
+        launchOptions: z.object(loShape).strict().optional(),
+        queryPort: z.number().int().min(1024).max(65535).nullable().optional(),
+      })
+      .parse(req.body);
+
+    const patch: { launchOptions?: LaunchOptions; queryPort?: number } = {};
+    if (body.launchOptions) {
+      patch.launchOptions = { ...(rec.launchOptions ?? {}), ...(body.launchOptions as LaunchOptions) };
+    }
+    if (body.queryPort !== undefined) {
+      if (body.queryPort !== null) {
+        const clash = store.list().some((r) => r.id !== rec.id && r.queryPort === body.queryPort);
+        if (clash) {
+          return reply.code(409).send({ error: `Steam 查詢埠 ${body.queryPort} 已被其他伺服器使用` });
+        }
+      }
+      patch.queryPort = body.queryPort ?? undefined;
+    }
+    store.update(rec.id, patch);
+    const updated = store.get(rec.id)!;
+    if (updated.backend === "k8s") {
+      const { applyLaunchOptionsK8s } = await import("./k8s-env-patch.js");
+      await applyLaunchOptionsK8s(updated, updated.launchOptions, updated.queryPort).catch(() => {});
+    }
+    return {
+      launchOptions: updated.launchOptions ?? {},
+      queryPort: updated.queryPort ?? null,
+      applied: "on-next-restart",
+    };
+  });
+
   // ── game version & updates ──
   app.get("/api/instances/:id/connection", async (req) => {
     const rec = getOr404((req.params as { id: string }).id);
@@ -1095,19 +1251,40 @@ export function registerRoutes(
 
   app.post("/api/instances/:id/update", async (req, reply) => {
     const rec = getOr404((req.params as { id: string }).id);
-    if (rec.backend !== "native") {
-      return reply.code(409).send({ error: "更新目前僅支援原生模式的實例" });
+
+    if (rec.backend === "native") {
+      if ((await driverOf(rec).status(rec, ctxOf(rec))).status === "running") {
+        return reply.code(409).send({ error: "請先停止伺服器再更新" });
+      }
+      if (isInstalling(rec.id)) {
+        return reply.code(409).send({ error: "更新已在進行中" });
+      }
+      await snapshotBefore(rec, "server update");
+      updateServer(rec, ctxOf(rec));
+      reply.code(202);
+      return { started: true, hint: "更新進度會顯示在日誌分頁(agent 來源)" };
     }
-    if ((await driverOf(rec).status(rec, ctxOf(rec))).status === "running") {
-      return reply.code(409).send({ error: "請先停止伺服器再更新" });
+
+    if (rec.backend === "docker") {
+      try {
+        const image = await dockerOps.updateImage(rec, store.instanceDir(rec.id));
+        return { started: true, image, hint: "已拉取最新映像檔並重建容器" };
+      } catch (err) {
+        return reply.code(409).send({ error: `映像檔更新失敗：${err instanceof Error ? err.message : String(err)}` });
+      }
     }
-    if (isInstalling(rec.id)) {
-      return reply.code(409).send({ error: "更新已在進行中" });
+
+    if (rec.backend === "k8s") {
+      const { rolloutRestart } = await import("./k8s.js");
+      try {
+        await rolloutRestart(rec);
+        return { started: true, hint: "已觸發滾動重啟,Pod 會重建並拉取最新映像檔" };
+      } catch (err) {
+        return reply.code(409).send({ error: `滾動重啟失敗：${err instanceof Error ? err.message : String(err)}` });
+      }
     }
-    await snapshotBefore(rec, "server update");
-    updateServer(rec, ctxOf(rec));
-    reply.code(202);
-    return { started: true, hint: "更新進度會顯示在日誌分頁(agent 來源)" };
+
+    return reply.code(409).send({ error: "不支援的後端" });
   });
 
   // ── automatic restarts ──

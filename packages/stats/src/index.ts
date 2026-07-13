@@ -8,6 +8,8 @@
  * 詳見 repo 根目錄的 PRIVACY.md。
  */
 
+import { ADMIN_HTML } from "./admin-page";
+
 export interface Env {
   DB: D1Database;
   GITHUB_REPO: string;
@@ -19,10 +21,12 @@ export interface Env {
   ADMIN_TOKEN?: string;
   /** Buy Me a Coffee webhook 簽章密鑰(wrangler secret put BMC_WEBHOOK_SECRET)。 */
   BMC_WEBHOOK_SECRET?: string;
-  /** Resend 寄信 API key(wrangler secret put RESEND_API_KEY);沒設就不寄碼(仍會建碼)。 */
-  RESEND_API_KEY?: string;
-  /** 寄件者,例:palserver GUI <noreply@iosoftware.ai>(需在 Resend 驗證網域)。 */
-  RESEND_FROM?: string;
+  /** Brevo(app.brevo.com)交易信 API key(wrangler secret put BREVO_API_KEY);沒設就不寄碼(仍會建碼)。 */
+  BREVO_API_KEY?: string;
+  /** 寄件信箱(需先在 Brevo 驗證寄件者/網域),預設 palserver-gui@iosoftware.ai。 */
+  BREVO_FROM_EMAIL?: string;
+  /** 寄件者顯示名稱,預設 palserver GUI。 */
+  BREVO_FROM_NAME?: string;
 }
 
 const EVENT_TYPES = ["hello", "instance_created", "server_started", "players_seen"] as const;
@@ -49,8 +53,16 @@ export default {
     // 贊助者識別碼(先行版授權)
     if (req.method === "POST" && url.pathname === "/api/license/activate") return handleLicenseActivate(req, env);
     if (req.method === "POST" && url.pathname === "/api/license/issue") return handleLicenseIssue(req, env);
+    if (req.method === "POST" && url.pathname === "/api/license/list") return handleLicenseList(req, env);
     if (req.method === "POST" && url.pathname === "/api/license/reset") return handleLicenseReset(req, env);
+    if (req.method === "POST" && url.pathname === "/api/license/delete") return handleLicenseDelete(req, env);
     if (req.method === "POST" && url.pathname === "/api/license/bmc-webhook") return handleBmcWebhook(req, env);
+    // 管理後台(發碼 / 管理);頁面本身公開,操作靠頁內輸入 ADMIN_TOKEN。
+    if (req.method === "GET" && (url.pathname === "/admin" || url.pathname === "/admin/")) {
+      return new Response(ADMIN_HTML, {
+        headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" },
+      });
+    }
     return json({ error: "not found" }, 404);
   },
 } satisfies ExportedHandler<Env>;
@@ -181,6 +193,10 @@ interface LicenseRow {
   expires_at: string | null;
   bound_to: string | null;
   activated_at: string | null;
+  /** 試用碼:啟用當下才起算 N 天(expires_at 首次啟用時才寫入)。null = 非試用。 */
+  trial_days: number | null;
+  email: string | null;
+  source: string;
 }
 
 const isAdmin = (req: Request, env: Env) =>
@@ -212,10 +228,17 @@ async function handleLicenseActivate(req: Request, env: Env): Promise<Response> 
   if (row.expires_at && now > row.expires_at) {
     return json({ valid: false, reason: "expired", tier: row.tier });
   }
+  let expiresAt = row.expires_at;
   if (!row.bound_to) {
-    // 首次啟用:綁定這台機器。
-    await env.DB.prepare("UPDATE licenses SET bound_to = ?1, activated_at = ?2 WHERE code = ?3")
-      .bind(machineId, now, code)
+    // 首次啟用:綁定這台機器。試用碼(trial_days)在這一刻才起算到期,
+    // 這樣活動發出去的碼是「兌換後 N 天」而不是「發碼後 N 天」。
+    if (row.trial_days && !expiresAt) {
+      expiresAt = new Date(Date.now() + row.trial_days * 86400_000).toISOString();
+    }
+    await env.DB.prepare(
+      "UPDATE licenses SET bound_to = ?1, activated_at = ?2, expires_at = ?3 WHERE code = ?4",
+    )
+      .bind(machineId, now, expiresAt, code)
       .run();
   } else if (row.bound_to !== machineId) {
     return json({ valid: false, reason: "bound-to-another" });
@@ -224,13 +247,21 @@ async function handleLicenseActivate(req: Request, env: Env): Promise<Response> 
     valid: true,
     tier: row.tier,
     features: JSON.parse(row.features) as string[],
-    expiresAt: row.expires_at,
+    expiresAt,
   });
 }
 
 async function handleLicenseIssue(req: Request, env: Env): Promise<Response> {
   if (!isAdmin(req, env)) return json({ error: "unauthorized" }, 401);
-  let body: { tier?: unknown; features?: unknown; sponsor?: unknown; expiresAt?: unknown };
+  let body: {
+    tier?: unknown;
+    features?: unknown;
+    sponsor?: unknown;
+    expiresAt?: unknown;
+    trialDays?: unknown;
+    count?: unknown;
+    source?: unknown;
+  };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -241,25 +272,86 @@ async function handleLicenseIssue(req: Request, env: Env): Promise<Response> {
     ? body.features.filter((f): f is string => typeof f === "string").slice(0, 32)
     : ["custom-pal"];
   const sponsor = typeof body.sponsor === "string" ? body.sponsor.slice(0, 200) : null;
-  const expiresAt = typeof body.expiresAt === "string" ? body.expiresAt.slice(0, 32) : null;
+  const source = typeof body.source === "string" ? body.source.slice(0, 32) : "manual";
+  // 效期二選一:trialDays(啟用後 N 天,expires_at 先留空)或 expiresAt(固定到期日)。
+  const trialDays =
+    typeof body.trialDays === "number" && body.trialDays > 0
+      ? Math.min(Math.floor(body.trialDays), 3650)
+      : null;
+  const expiresAt = !trialDays && typeof body.expiresAt === "string" ? body.expiresAt.slice(0, 32) : null;
+  const count = Math.min(Math.max(Math.floor(Number(body.count) || 1), 1), 500);
   const now = new Date().toISOString();
 
-  // 極小機率撞碼就重試幾次。
-  for (let i = 0; i < 5; i++) {
-    const code = generateCode();
-    try {
-      await env.DB.prepare(
-        `INSERT INTO licenses (code, tier, features, sponsor, created_at, expires_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
-      )
-        .bind(code, tier, JSON.stringify(features), sponsor, now, expiresAt)
-        .run();
-      return json({ code, tier, features, sponsor, expiresAt });
-    } catch {
-      /* 撞主鍵,換一個 */
+  const codes: string[] = [];
+  for (let n = 0; n < count; n++) {
+    let ok = false;
+    for (let i = 0; i < 6 && !ok; i++) {
+      const code = generateCode();
+      try {
+        await env.DB.prepare(
+          `INSERT INTO licenses (code, tier, features, sponsor, created_at, expires_at, trial_days, source)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`,
+        )
+          .bind(code, tier, JSON.stringify(features), sponsor, now, expiresAt, trialDays, source)
+          .run();
+        codes.push(code);
+        ok = true;
+      } catch {
+        /* 撞主鍵,換一個 */
+      }
     }
+    if (!ok) return json({ error: "could not allocate code", codes }, 500);
   }
-  return json({ error: "could not allocate code" }, 500);
+  // code(單數)保留給既有 CLI(manage.mjs)相容。
+  return json({ codes, count: codes.length, code: codes[0], tier, features, sponsor, expiresAt, trialDays });
+}
+
+/** 列出識別碼(管理用)。可用 filter 對 sponsor 標籤做子字串過濾。 */
+async function handleLicenseList(req: Request, env: Env): Promise<Response> {
+  if (!isAdmin(req, env)) return json({ error: "unauthorized" }, 401);
+  let body: { filter?: unknown; limit?: unknown };
+  try {
+    body = (await req.json()) as typeof body;
+  } catch {
+    body = {};
+  }
+  const filter = typeof body.filter === "string" ? body.filter.trim() : "";
+  const limit = Math.min(Math.max(Math.floor(Number(body.limit) || 500), 1), 2000);
+  const stmt = filter
+    ? env.DB.prepare(
+        "SELECT * FROM licenses WHERE sponsor LIKE ?1 ORDER BY created_at DESC LIMIT ?2",
+      ).bind(`%${filter}%`, limit)
+    : env.DB.prepare("SELECT * FROM licenses ORDER BY created_at DESC LIMIT ?1").bind(limit);
+  const rows = await stmt.all<LicenseRow>();
+  const licenses = (rows.results ?? []).map((r) => ({
+    code: r.code,
+    tier: r.tier,
+    features: JSON.parse(r.features) as string[],
+    sponsor: r.sponsor,
+    createdAt: r.created_at,
+    expiresAt: r.expires_at,
+    trialDays: r.trial_days,
+    activatedAt: r.activated_at,
+    bound: !!r.bound_to,
+    source: r.source,
+    email: r.email,
+  }));
+  return json({ licenses, count: licenses.length });
+}
+
+/** 撤銷(刪除)一張識別碼。啟用中的機器下次重驗就會失效。 */
+async function handleLicenseDelete(req: Request, env: Env): Promise<Response> {
+  if (!isAdmin(req, env)) return json({ error: "unauthorized" }, 401);
+  let body: { code?: unknown };
+  try {
+    body = (await req.json()) as typeof body;
+  } catch {
+    body = {};
+  }
+  const code = typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
+  if (!code) return json({ error: "missing code" }, 400);
+  const res = await env.DB.prepare("DELETE FROM licenses WHERE code = ?1").bind(code).run();
+  return json({ deleted: res.meta.changes ?? 0 });
 }
 
 async function handleLicenseReset(req: Request, env: Env): Promise<Response> {
@@ -323,26 +415,91 @@ function pickEmail(data: Record<string, unknown>): string | null {
   return null;
 }
 
-async function sendCodeEmail(env: Env, to: string, code: string): Promise<void> {
-  if (!env.RESEND_API_KEY || !env.RESEND_FROM) return; // 沒設定就只建碼、不寄信
-  const html = `
+/** 寄碼給贊助者。回傳寄信結果(不 throw:寄信失敗不影響發碼),讓上層能把
+ *  成功/失敗與原因回報出來,方便排查(否則 Brevo 拒絕也看不到)。 */
+type Lang = "zh" | "en" | "ja";
+
+/** 贊助碼信件的三語文案。html(code) 產生信件內文。 */
+const EMAIL_I18N: Record<Lang, { subject: string; html: (code: string) => string }> = {
+  zh: {
+    subject: "你的 palserver GUI 先行版識別碼",
+    html: (code) => `
     <p>感謝你的贊助!以下是你的 palserver GUI 先行版識別碼:</p>
     <p style="font-size:20px;font-weight:800;font-family:monospace">${code}</p>
     <p>在 GUI 的「設定 → 贊助者識別碼」貼上即可解鎖先行版功能。<br>
-    一組識別碼只能綁定一台伺服器;月費有效期間持續解鎖,取消後於當期到期時停用。</p>`;
+    一組識別碼只能綁定一台伺服器;月費有效期間持續解鎖,取消後於當期到期時停用。</p>`,
+  },
+  en: {
+    subject: "Your palserver GUI early-access code",
+    html: (code) => `
+    <p>Thank you for your support! Here is your palserver GUI early-access code:</p>
+    <p style="font-size:20px;font-weight:800;font-family:monospace">${code}</p>
+    <p>Paste it into <b>Settings → Sponsor code</b> in the GUI to unlock the early-access features.<br>
+    One code binds to a single server; it stays unlocked while your membership is active and stops at the end of the period after you cancel.</p>`,
+  },
+  ja: {
+    subject: "palserver GUI 先行アクセスコード",
+    html: (code) => `
+    <p>ご支援ありがとうございます!palserver GUI の先行アクセスコードはこちらです:</p>
+    <p style="font-size:20px;font-weight:800;font-family:monospace">${code}</p>
+    <p>GUI の「設定 → スポンサーコード」に貼り付けると先行アクセス機能が解除されます。<br>
+    1つのコードはサーバー1台に紐づきます。メンバーシップが有効な間は解除され、解約後は当期の終了時に無効になります。</p>`,
+  },
+};
+
+/** 從 BMC payload 盡量判斷語言(zh/ja/en),判不出來 fallback 英文。 */
+function pickLang(data: Record<string, unknown>): Lang {
+  const cands = [
+    data.supporter_locale,
+    data.locale,
+    data.language,
+    data.lang,
+    data.country,
+    data.supporter_country,
+    (data.supporter as Record<string, unknown> | undefined)?.locale,
+    (data.member as Record<string, unknown> | undefined)?.locale,
+  ];
+  const s = cands.find((c) => typeof c === "string");
+  const v = typeof s === "string" ? s.toLowerCase() : "";
+  if (/\b(zh|tw|hk|cn|mo|hant|hans)\b|zh[-_]|taiwan|hong|china/.test(v)) return "zh";
+  if (/\b(ja|jp)\b|ja[-_]|japan/.test(v)) return "ja";
+  return "en";
+}
+
+async function sendCodeEmail(
+  env: Env,
+  to: string,
+  code: string,
+  lang: Lang = "en",
+): Promise<{ sent: boolean; error?: string }> {
+  if (!env.BREVO_API_KEY) return { sent: false, error: "BREVO_API_KEY 未設定(worker 上沒有這個 secret)" };
+  const tpl = EMAIL_I18N[lang] ?? EMAIL_I18N.en;
   try {
-    await fetch("https://api.resend.com/emails", {
+    // Brevo 交易信 API(https://developers.brevo.com/reference/sendtransacemail)。
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
-      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      headers: {
+        "api-key": env.BREVO_API_KEY,
+        "content-type": "application/json",
+        accept: "application/json",
+      },
       body: JSON.stringify({
-        from: env.RESEND_FROM,
-        to,
-        subject: "你的 palserver GUI 先行版識別碼",
-        html,
+        sender: {
+          name: env.BREVO_FROM_NAME ?? "palserver GUI",
+          email: env.BREVO_FROM_EMAIL ?? "palserver-gui@iosoftware.ai",
+        },
+        to: [{ email: to }],
+        subject: tpl.subject,
+        htmlContent: tpl.html(code),
       }),
     });
-  } catch {
-    /* 寄信失敗不影響發碼;可用 /api/license/issue 手動補寄 */
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return { sent: false, error: `Brevo HTTP ${res.status}: ${body.slice(0, 300)}` };
+    }
+    return { sent: true };
+  } catch (e) {
+    return { sent: false, error: String(e) };
   }
 }
 
@@ -399,8 +556,16 @@ async function handleBmcWebhook(req: Request, env: Env): Promise<Response> {
       )
         .bind(code, JSON.stringify(["custom-pal"]), email, now.toISOString(), expiresAt, email)
         .run();
-      await sendCodeEmail(env, email, code);
-      return json({ ok: true, type, email, action: "issued", code });
+      const emailed = await sendCodeEmail(env, email, code, pickLang(data));
+      return json({
+        ok: true,
+        type,
+        email,
+        action: "issued",
+        code,
+        emailed: emailed.sent,
+        ...(emailed.error ? { emailError: emailed.error } : {}),
+      });
     } catch {
       /* 撞碼重試 */
     }

@@ -2,6 +2,7 @@
 # CRLF: without the BOM, Windows PowerShell 5.1 decodes them as the ANSI
 # codepage and mangles non-ASCII text (breaking string parsing).
 *.ps1 text eol=crlf
+<<<<<<< HEAD
 
 # Ensure all text files are checked out with correct line endings
 * text=auto
@@ -12,3 +13,6 @@
 *.js text eol=lf
 *.jsx text eol=lf
 *.json text eol=lf
+=======
+*.sh text eol=lf
+>>>>>>> upstream/main

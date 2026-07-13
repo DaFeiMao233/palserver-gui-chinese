@@ -1,7 +1,8 @@
-import { FiChevronDown } from "react-icons/fi";
+import { FiChevronDown, FiX } from "react-icons/fi";
 import type { InstanceStatus } from "@palserver/shared";
 import { STATUS_LABELS } from "./labels";
 import { t, useI18n } from "./i18n";
+import { useHiddenCards } from "./tabPrefs";
 
 export const btn =
   "rounded-full bg-pal px-5 py-2 text-sm font-extrabold text-white transition " +
@@ -75,10 +76,43 @@ export function StatusBadge({ status }: { status: InstanceStatus }) {
 export function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgb(35_32_48/0.55)] p-6 backdrop-blur-[3px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgb(35_32_48/0.55)] p-3 backdrop-blur-[3px] sm:p-6"
       onClick={onClose}
     >
       {children}
+    </div>
+  );
+}
+
+/**
+ * 常駐的黃色警告橫幅,右上角帶叉叉可按掉(收起後可在設定→「卡片隱藏」恢復)。
+ * id 需登記在 tabPrefs 的 DISMISSIBLE_WARNINGS,設定頁才列得出來。
+ */
+export function DismissibleWarning({
+  id,
+  children,
+  className,
+}: {
+  id: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  useI18n();
+  const [hidden, setHidden] = useHiddenCards();
+  if (hidden.includes(id)) return null;
+  return (
+    <div
+      className={`relative rounded-xl border-2 border-sun/40 bg-sun/10 py-2 pl-3 pr-9 text-[13px] text-sun ${className ?? ""}`}
+    >
+      {children}
+      <button
+        className="absolute right-1.5 top-1.5 rounded-lg p-1 text-sun/70 transition hover:bg-sun/20 hover:text-sun"
+        onClick={() => setHidden([...hidden, id])}
+        title={t("關閉此提醒(可在設定恢復)")}
+        aria-label={t("關閉此提醒(可在設定恢復)")}
+      >
+        <FiX className="size-4" />
+      </button>
     </div>
   );
 }

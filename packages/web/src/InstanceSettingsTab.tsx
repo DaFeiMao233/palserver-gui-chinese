@@ -1,8 +1,20 @@
 import { useState } from "react";
-import { FiAlertTriangle, FiCopy, FiDownloadCloud, FiHardDrive, FiSave, FiTrash2 } from "react-icons/fi";
+import { FiAlertTriangle, FiColumns, FiCopy, FiDownloadCloud, FiFolder, FiHardDrive, FiLayout, FiSave, FiTrash2 } from "react-icons/fi";
 import type { InstanceDetail } from "@palserver/shared";
 import type { AgentClient } from "./api";
 import { CopyPath } from "./CopyPath";
+import { FileBrowserDialog } from "./FileManager";
+import { LaunchOptionsCard } from "./LaunchOptionsCard";
+import {
+  TABS,
+  LOCKED_TABS,
+  OVERVIEW_CARDS,
+  DISMISSIBLE_WARNINGS,
+  DISMISSIBLE_PROMOS,
+  useHiddenTabs,
+  useHiddenCards,
+  type Tab,
+} from "./tabPrefs";
 import { t, useI18n } from "./i18n";
 import { btn, btnDanger, btnGhost, card, errorCls, inputCls, labelCls } from "./ui";
 
@@ -27,6 +39,8 @@ export function InstanceSettingsTab({
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
+      <ServerFilesCard client={client} instanceId={detail.id} />
+
       {detail.backend === "native" && (
         <>
           <ServerPathCard
@@ -41,6 +55,12 @@ export function InstanceSettingsTab({
         </>
       )}
 
+      <LaunchOptionsCard client={client} instanceId={detail.id} category="general" />
+
+      <TabVisibilityCard />
+
+      <OverviewCardsCard />
+
       <DangerZone
         client={client}
         instanceId={detail.id}
@@ -48,6 +68,119 @@ export function InstanceSettingsTab({
         adminPassword={String(detail.settings.AdminPassword ?? "")}
         onDeleted={onDeleted}
       />
+    </div>
+  );
+}
+
+/** 伺服器檔案瀏覽器入口(直接編輯 / 上傳 / 刪除伺服器目錄裡的檔案)。 */
+function ServerFilesCard({ client, instanceId }: { client: AgentClient; instanceId: string }) {
+  useI18n();
+  const [browsing, setBrowsing] = useState<string | null>(null);
+  return (
+    <div className={card}>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="inline-flex items-center gap-2 text-sm font-extrabold">
+          <FiFolder className="size-4 text-pal" /> {t("伺服器檔案")}
+        </h3>
+        <button
+          className={`${btnGhost} inline-flex items-center gap-1.5`}
+          onClick={() => setBrowsing("")}
+        >
+          <FiFolder className="size-4" /> {t("瀏覽全部")}
+        </button>
+      </div>
+      <p className="text-[13px] text-ink-muted">
+        {t("直接編輯、上傳或刪除伺服器目錄裡的檔案(例如 PalDefender 的 Config.json)。")}
+      </p>
+      {browsing !== null && (
+        <FileBrowserDialog
+          client={client}
+          instanceId={instanceId}
+          initialPath={browsing}
+          onClose={() => setBrowsing(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** 選擇實例詳情頁要顯示哪些分頁(存 localStorage,全實例共用)。總覽與本設定頁不可隱藏。 */
+function TabVisibilityCard() {
+  useI18n();
+  const [hidden, setHidden] = useHiddenTabs();
+  const toggle = (id: Tab) =>
+    setHidden(hidden.includes(id) ? hidden.filter((x) => x !== id) : [...hidden, id]);
+
+  return (
+    <div className={`${card} flex flex-col gap-3`}>
+      <h3 className="inline-flex items-center gap-2 text-sm font-extrabold">
+        <FiColumns className="size-4 text-pal" /> {t("顯示的分頁")}
+      </h3>
+      <p className="text-[13px] text-ink-muted">
+        {t("勾選要在伺服器頁面顯示的分頁。取消勾選會把該分頁隱藏起來。")}
+      </p>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+        {TABS.map((tb) => {
+          const locked = LOCKED_TABS.includes(tb.id);
+          const shown = locked || !hidden.includes(tb.id);
+          return (
+            <label
+              key={tb.id}
+              className={`inline-flex items-center gap-2 text-[13px] font-bold ${
+                locked ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+              }`}
+            >
+              <input
+                type="checkbox"
+                className="size-4 accent-pal"
+                checked={shown}
+                disabled={locked}
+                onChange={() => toggle(tb.id)}
+              />
+              {t(tb.label)}
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** 恢復被按叉叉收起的卡片與警告(總覽卡片、各分頁的黃色提醒)。 */
+function OverviewCardsCard() {
+  useI18n();
+  const [hidden, setHidden] = useHiddenCards();
+  const toggle = (id: string) =>
+    setHidden(hidden.includes(id) ? hidden.filter((x) => x !== id) : [...hidden, id]);
+
+  const section = (title: string, items: { id: string; label: string }[]) => (
+    <div className="flex flex-col gap-2">
+      <p className="text-[12px] font-bold text-ink-muted">{t(title)}</p>
+      {items.map((c) => (
+        <label key={c.id} className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-bold">
+          <input
+            type="checkbox"
+            className="size-4 accent-pal"
+            checked={!hidden.includes(c.id)}
+            onChange={() => toggle(c.id)}
+          />
+          {t(c.label)}
+        </label>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className={`${card} flex flex-col gap-3`}>
+      <h3 className="inline-flex items-center gap-2 text-sm font-extrabold">
+        <FiLayout className="size-4 text-pal" /> {t("卡片隱藏")}
+      </h3>
+      <p className="text-[13px] text-ink-muted">
+        {t("取消勾選即可隱藏對應的卡片或提醒;這些也可以直接在畫面上點右上角的 × 收起,再回這裡勾回來。")}
+      </p>
+      {section("總覽卡片", OVERVIEW_CARDS)}
+      {section("提醒訊息", DISMISSIBLE_WARNINGS)}
+      {section("推廣", DISMISSIBLE_PROMOS)}
     </div>
   );
 }

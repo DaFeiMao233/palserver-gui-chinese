@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FiArrowLeft, FiPlay, FiSquare, FiRefreshCw, FiSave, FiTerminal, FiX, FiAlertTriangle } from "react-icons/fi";
+import { FiArrowLeft, FiPlay, FiSquare, FiRefreshCw, FiSave, FiTerminal, FiFileText, FiX, FiAlertTriangle, FiAlignLeft, FiStar } from "react-icons/fi";
 import type {
   InstanceDetail as Detail,
   LogSource,
@@ -25,39 +25,13 @@ import { SHOW_SPONSOR_FEATURES } from "./flags";
 import { PerformanceTab } from "./PerformanceTab";
 import { EngineTab } from "./EngineTab";
 import { maskSteamIdsInText } from "./SteamId";
+import { hasFeature } from "@palserver/shared";
+import { classifyLine, categoryColor, formatLine, genericLine, translateTarget, useLogPrefs } from "./logHighlight";
 import { STATUS_LABELS } from "./labels";
+import { TABS, LOCKED_TABS, useHiddenTabs, useHiddenCards, type Tab } from "./tabPrefs";
 import { t, t as translate, useI18n } from "./i18n";
 import { Overlay, StatusBadge, btn, btnGhost, card, errorCls } from "./ui";
 
-type Tab =
-  | "overview"
-  | "performance"
-  | "players"
-  | "map"
-  | "settings"
-  | "engine"
-  | "mods"
-  | "paldefender"
-  | "palstats"
-  | "saves"
-  | "restart"
-  | "instance"
-  | "logs";
-const TABS: { id: Tab; label: string }[] = [
-  { id: "overview", label: "總覽" },
-  { id: "performance", label: "效能分析" },
-  { id: "players", label: "玩家" },
-  { id: "map", label: "線上地圖" },
-  { id: "settings", label: "世界設定" },
-  { id: "engine", label: "引擎微調" },
-  { id: "mods", label: "模組" },
-  { id: "paldefender", label: "PalDefender" },
-  { id: "palstats", label: "物種數值" },
-  { id: "saves", label: "存檔備份" },
-  { id: "restart", label: "伺服器重啟" },
-  { id: "instance", label: "設定" },
-  { id: "logs", label: "日誌" },
-];
 
 export function InstanceDetailPage({
   client,
@@ -73,7 +47,13 @@ export function InstanceDetailPage({
   useI18n();
   const [detail, setDetail] = useState<Detail | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
+  const [hiddenTabs] = useHiddenTabs();
+  // 若目前分頁被使用者在設定裡藏起來,退回總覽,避免停在看不見的分頁。
+  useEffect(() => {
+    if (!LOCKED_TABS.includes(tab) && hiddenTabs.includes(tab)) setTab("overview");
+  }, [hiddenTabs, tab]);
   const [showConsole, setShowConsole] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -222,6 +202,12 @@ export function InstanceDetailPage({
           )}
           <button
             className={`${btnGhost} inline-flex items-center gap-1.5`}
+            onClick={() => setShowLogs(true)}
+          >
+            <FiFileText className="size-4" /> {t("日誌")}
+          </button>
+          <button
+            className={`${btnGhost} inline-flex items-center gap-1.5`}
             onClick={() => setShowConsole(true)}
             title={t("指令台")}
             aria-label={t("指令台")}
@@ -256,6 +242,25 @@ export function InstanceDetailPage({
         </Overlay>
       )}
 
+      {showLogs && (
+        <Overlay onClose={() => setShowLogs(false)}>
+          <div
+            className={`${card} flex max-h-[90vh] w-240 max-w-full flex-col gap-3 overflow-y-auto`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-center justify-between">
+              <h2 className="inline-flex items-center gap-2 text-lg font-extrabold">
+                <FiFileText className="size-5 text-pal" /> {t("日誌")}
+              </h2>
+              <button className={btnGhost} onClick={() => setShowLogs(false)} aria-label={t("關閉")}>
+                <FiX className="size-4" />
+              </button>
+            </div>
+            <LogsTab client={client} instanceId={detail.id} />
+          </div>
+        </Overlay>
+      )}
+
       {notice && (
         <p className="rounded-xl bg-grass/10 px-3 py-2 text-[13px] font-bold text-grass">{notice}</p>
       )}
@@ -271,7 +276,7 @@ export function InstanceDetailPage({
               : detail.installError.message}{" "}
             <button
               className="underline underline-offset-2 hover:opacity-80"
-              onClick={() => setTab("logs")}
+              onClick={() => setShowLogs(true)}
             >
               {t("查看日誌")}
             </button>
@@ -282,6 +287,7 @@ export function InstanceDetailPage({
       <div className="flex flex-wrap gap-x-2 gap-y-1 border-b-2 border-line">
         {TABS.filter((t) => t.id !== "paldefender" || palDefender)
           .filter((t) => t.id !== "palstats" || SHOW_SPONSOR_FEATURES)
+          .filter((t) => LOCKED_TABS.includes(t.id) || !hiddenTabs.includes(t.id))
           .map((t) => (
           <button
             key={t.id}
@@ -338,7 +344,6 @@ export function InstanceDetailPage({
       {tab === "instance" && (
         <InstanceSettingsTab client={client} detail={detail} onChanged={refresh} onDeleted={onDeleted} />
       )}
-      {tab === "logs" && <LogsTab client={client} instanceId={detail.id} />}
     </div>
   );
 }
@@ -354,6 +359,7 @@ function OverviewTab({
 }) {
   useI18n();
   const [enhancements, setEnhancements] = useState<string[] | null>(null);
+  const [hiddenCards, setHiddenCards] = useHiddenCards();
 
   useEffect(() => {
     client
@@ -385,7 +391,31 @@ function OverviewTab({
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="flex flex-col gap-4">
+      {!hiddenCards.includes("ports") && (
+        <div className="rounded-cute border-2 border-sun/45 bg-sun/10 px-4 py-3">
+          <div className="flex items-start justify-between gap-2">
+            <p className="inline-flex min-w-0 items-center gap-2 text-sm font-extrabold text-sun">
+              <FiAlertTriangle className="size-4 shrink-0" /> {t("多台伺服器?這些埠都不能重複")}
+            </p>
+            <button
+              className="-mr-1 -mt-1 rounded-lg p-1 text-ink-muted transition hover:bg-card-soft hover:text-ink"
+              onClick={() => setHiddenCards([...hiddenCards, "ports"])}
+              title={t("隱藏此卡片(可在設定恢復)")}
+              aria-label={t("隱藏此卡片(可在設定恢復)")}
+            >
+              <FiX className="size-4" />
+            </button>
+          </div>
+          <p className="mt-1 text-[13px] text-ink-muted">
+            {t("同一台主機上跑多個伺服器時,每台的以下埠都必須各自不同,否則會發生埠綁定衝突,導致伺服器起不來或玩家連不上:")}
+          </p>
+          <p className="mt-1 text-[13px] font-bold">
+            {t("遊戲埠(port) · Steam 查詢埠(queryport) · RCON 埠 · REST API 埠 · PalDefender REST 埠(預設 17993)")}
+          </p>
+        </div>
+      )}
+      <div className="grid gap-4 sm:grid-cols-2">
       <div className={card}>
         <h3 className="mb-3 text-sm font-extrabold text-ink-muted">{t("伺服器資訊")}</h3>
         <dl className="flex flex-col gap-2">
@@ -399,33 +429,91 @@ function OverviewTab({
           ))}
         </dl>
       </div>
-      <MigrationCard />
+      {!hiddenCards.includes("migration") && (
+        <MigrationCard onDismiss={() => setHiddenCards([...hiddenCards, "migration"])} />
+      )}
       <VersionCard
         client={client}
         instanceId={detail.id}
         running={detail.status === "running"}
         onUpdateStarted={onRefresh}
       />
-      <ConnectionCard client={client} instanceId={detail.id} />
+      {!hiddenCards.includes("invite") && (
+        <ConnectionCard
+          client={client}
+          instanceId={detail.id}
+          onDismiss={() => setHiddenCards([...hiddenCards, "invite"])}
+        />
+      )}
+      </div>
     </div>
+  );
+}
+
+/** 小圓角開關(重點標記 / 格式化 / 翻譯)。 */
+function LogToggle({
+  on,
+  onChange,
+  icon,
+  label,
+  disabled,
+  title,
+}: {
+  on: boolean;
+  onChange: (v: boolean) => void;
+  icon?: React.ReactNode;
+  label: string;
+  disabled?: boolean;
+  title?: string;
+}) {
+  return (
+    <button
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-extrabold transition ${
+        on ? "bg-pal text-white" : "border-2 border-line bg-card-soft text-ink-muted hover:border-pal"
+      } ${disabled ? "cursor-not-allowed opacity-50 hover:border-line" : ""}`}
+      onClick={() => !disabled && onChange(!on)}
+      disabled={disabled}
+      title={title}
+      aria-pressed={on}
+    >
+      {icon} {label}
+    </button>
   );
 }
 
 function LogsTab({ client, instanceId }: { client: AgentClient; instanceId: string }) {
   useI18n();
   const [sources, setSources] = useState<LogSource[]>([]);
-  const [source, setSource] = useState<LogSourceId>("agent");
+  const [source, setSource] = useState<LogSourceId | "">("");
   const [lines, setLines] = useState<string[]>([]);
+  const [entitled, setEntitled] = useState<boolean | null>(null);
+  const prefs = useLogPrefs();
+  const transRef = useRef<Map<string, string>>(new Map());
+  const [, bumpTrans] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    client.logSources(instanceId).then(setSources).catch(() => setSources([]));
+    client.license().then((l) => setEntitled(hasFeature("log-tools", l))).catch(() => setEntitled(false));
+  }, [client]);
+
+  useEffect(() => {
+    client
+      .logSources(instanceId)
+      .then((s) => {
+        setSources(s);
+        // 預設選第一個可用來源(PalDefender 優先,否則原生遊戲);不再寫死已移除的 agent。
+        setSource((cur) => (cur && s.some((x) => x.id === cur) ? cur : s[0]?.id ?? ""));
+      })
+      .catch(() => setSources([]));
   }, [client, instanceId]);
 
   useEffect(() => {
+    if (!source) return;
     setLines([]);
     const socket = client.logsSocket(instanceId, source);
-    socket.onmessage = (ev) => setLines((prev) => [...prev.slice(-999), String(ev.data)]);
+    // Windows 的日誌是 CRLF,切行後每行尾端會留一個 \r;不去掉的話,formatLine 裡收在
+    // 行尾的 regex($ 錨點)會匹配失敗(JS 的 $ 不在 \r 前匹配)。進來就正規化掉。
+    socket.onmessage = (ev) => setLines((prev) => [...prev.slice(-999), String(ev.data).replace(/\r+$/, "")]);
     socket.onclose = (ev) => {
       if (ev.code !== 1000 && ev.code !== 1005) {
         setLines((prev) => [...prev, t("— 日誌串流已中斷({reason})—", { reason: String(ev.reason || ev.code) })]);
@@ -434,9 +522,54 @@ function LogsTab({ client, instanceId }: { client: AgentClient; instanceId: stri
     return () => socket.close();
   }, [client, instanceId, source]);
 
+  // 套不了版的一般行(info/warning 等):把英文訊息送 agent 代理 Google 翻譯,快取,同句不重複。
+  // 介面語言是英文就不用翻。事件行(formatLine 有值)已是套版好的,不送翻。
+  // 翻譯(贊助者功能 log-tools):送 agent 代理 Google 翻譯,快取。格式化開著就只翻「套不了
+  // 版的一般行」訊息(事件行已中文套版);沒開格式化就整行送翻。英文介面不翻。
+  useEffect(() => {
+    if (entitled !== true || !prefs.translate) return;
+    const tlv = translateTarget();
+    if (tlv === "en") return;
+    let cancelled = false;
+    (async () => {
+      for (const line of lines.slice(-200)) {
+        if (cancelled) return;
+        let q: string;
+        if (prefs.format) {
+          if (formatLine(line)) continue; // 事件行不翻
+          const g = genericLine(line);
+          if (!g || !g.message.trim()) continue;
+          q = g.message;
+        } else {
+          q = line.replace(/[\s﻿]+$/, "");
+          if (!q.trim()) continue;
+        }
+        const key = `${tlv}\n${q}`;
+        if (transRef.current.has(key)) continue;
+        transRef.current.set(key, ""); // 佔位避免重複請求
+        try {
+          const r = await client.translate(q, tlv);
+          if (cancelled) return;
+          transRef.current.set(key, r.text || "");
+          bumpTrans((v) => v + 1);
+        } catch {
+          /* 單行失敗略過 */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [entitled, prefs.translate, prefs.format, lines, client]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [lines]);
+
+  const highlight = prefs.highlight; // 免費
+  const format = prefs.format; // 免費
+  const translate = entitled === true && prefs.translate; // 贊助者限定
+  const tl = translateTarget();
 
   return (
     <div className="flex flex-col gap-3">
@@ -459,10 +592,67 @@ function LogsTab({ client, instanceId }: { client: AgentClient; instanceId: stri
           ))}
         </div>
       )}
-      <pre className="h-[440px] overflow-auto rounded-(--radius-cute) bg-[#1c1927] p-4 font-mono text-xs whitespace-pre-wrap break-all text-[#cfd6df]">
-        {lines.length ? maskSteamIdsInText(lines.join("\n")) : t("(尚無日誌)")}
+
+      {source && (
+        <p className="inline-flex w-fit items-center gap-1.5 rounded-full bg-card-soft px-3 py-1 text-[12px] font-bold text-ink-muted">
+          <FiFileText className="size-3.5" />
+          {t("日誌來源:{src}", { src: t(sources.find((s) => s.id === source)?.label ?? source) })}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <LogToggle on={prefs.highlight} onChange={prefs.setHighlight} label={t("重點標記")} />
+        <LogToggle on={prefs.format} onChange={prefs.setFormat} icon={<FiAlignLeft className="size-4" />} label={t("格式化")} />
+        {/* 翻譯:贊助者限定,星星標示;未解鎖時停用。 */}
+        <LogToggle
+          on={translate}
+          onChange={(v) => entitled === true && prefs.setTranslate(v)}
+          disabled={entitled !== true}
+          icon={<FiStar className="size-4 text-amber-400" />}
+          label={t("翻譯")}
+          title={entitled === true ? undefined : t("翻譯為贊助者專屬功能")}
+        />
+      </div>
+      {entitled === false && (
+        <p className="inline-flex items-center gap-2 rounded-cute border-2 border-sun/40 bg-sun/10 px-3 py-2 text-xs font-bold text-sun">
+          <FiStar className="size-4 shrink-0 text-amber-400" />
+          {t("日誌翻譯為贊助者專屬功能,到「設定 → 贊助者識別碼」輸入識別碼即可解鎖。")}
+        </p>
+      )}
+
+      <div className="h-[440px] overflow-auto rounded-(--radius-cute) bg-[#1c1927] p-4 font-mono text-sm">
+        {lines.length ? (
+          lines.map((line, i) => {
+            const color = highlight ? categoryColor(classifyLine(line)) : "#cfd6df";
+            let text = line;
+            if (format) {
+              const ev = formatLine(line);
+              if (ev) {
+                text = ev; // 事件行:套版好的
+              } else {
+                const g = genericLine(line);
+                if (g) {
+                  // 一般英文行:翻譯開著且有譯文就用譯文,否則用去前綴的原文。
+                  const tr = translate && tl !== "en" ? transRef.current.get(`${tl}\n${g.message}`) : "";
+                  text = `${g.time}  ${tr || g.message}`;
+                }
+              }
+            } else if (translate && tl !== "en") {
+              // 不格式化但開翻譯:整行送翻。
+              const q = line.replace(/[\s﻿]+$/, "");
+              text = transRef.current.get(`${tl}\n${q}`) || line;
+            }
+            return (
+              <div key={i} className="whitespace-pre-wrap break-all" style={{ color }}>
+                {maskSteamIdsInText(text)}
+              </div>
+            );
+          })
+        ) : (
+          <span className="text-[#cfd6df]">{t("(尚無日誌)")}</span>
+        )}
         <div ref={bottomRef} />
-      </pre>
+      </div>
     </div>
   );
 }

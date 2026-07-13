@@ -37,9 +37,11 @@ CREATE TABLE IF NOT EXISTS licenses (
   bound_to TEXT,              -- 機器碼,首次啟用前為 null
   activated_at TEXT,
   email TEXT,                 -- BMC 會員的 email(月費續訂靠它找同一張碼)
-  source TEXT NOT NULL DEFAULT 'manual'  -- 'manual' | 'bmc'
+  source TEXT NOT NULL DEFAULT 'manual',  -- 'manual' | 'bmc' | 'campaign'
+  trial_days INTEGER          -- 試用碼:啟用當下才起算 N 天(activate 時寫入 expires_at);null=非試用
 );
--- 已建好舊表的話,補欄位(第一次沒有這兩欄時執行;已存在會報錯可忽略):
+-- 已建好舊表的話,補欄位(第一次沒有這些欄時執行;已存在會報錯可忽略):
 --   ALTER TABLE licenses ADD COLUMN email TEXT;
 --   ALTER TABLE licenses ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';
+--   ALTER TABLE licenses ADD COLUMN trial_days INTEGER;
 CREATE INDEX IF NOT EXISTS idx_licenses_email ON licenses(email);

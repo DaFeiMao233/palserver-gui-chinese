@@ -42,9 +42,19 @@ npx wrangler secret put GITHUB_TOKEN   # 貼上 fine-grained PAT(只需 public r
 同一個 worker 也負責發/驗贊助者識別碼(一機一碼)。端點:
 
 - `POST /api/license/activate {code, machineId}` — agent 用,驗證 + 首次綁機器(公開)
-- `POST /api/license/issue {tier?, features?, sponsor?, expiresAt?}` — 手動發碼(需 `X-Admin-Token`)
+- `POST /api/license/issue {count?, trialDays?, expiresAt?, sponsor?, features?}` — 發碼(需 `X-Admin-Token`);`count` 可一次多張,`trialDays` = 啟用後 N 天(試用碼,兌換當下才起算到期)
+- `POST /api/license/list {filter?, limit?}` — 列出識別碼(需 `X-Admin-Token`)
 - `POST /api/license/reset {code}` — 解除綁定讓贊助者換機(需 `X-Admin-Token`)
-- `POST /api/license/bmc-webhook` — Buy Me a Coffee 月費會員 webhook(自動發碼/續期)
+- `POST /api/license/delete {code}` — 撤銷(刪除)一張碼(需 `X-Admin-Token`)
+- `POST /api/license/bmc-webhook` — Buy Me a Coffee 月費會員 webhook(自動發碼/續期;信件依 BMC 語言中英日,fallback 英文)
+
+### 管理後台 UI
+
+`GET /admin`(例:`https://palserver-stats.iosoftware.workers.dev/admin`)是一個發碼/管理的網頁介面:
+輸入 `ADMIN_TOKEN` 後可**大量發試用碼**(數量、啟用後 N 天 / 固定到期 / 永久、活動標籤)、
+複製 / 下載 CSV,並在表格裡檢視、解綁、撤銷。頁面公開但所有操作都要 Token,Token 只存在該分頁。
+
+> 新增 `trial_days` 欄位:舊 DB 需 `ALTER TABLE licenses ADD COLUMN trial_days INTEGER;`(見 schema.sql)。
 
 ```bash
 # 管理密鑰(發碼/解綁用)
@@ -60,13 +70,14 @@ curl -X POST https://palserver-stats.iosoftware.workers.dev/api/license/issue \
 
 1. BMC 開一個月費 **Membership** 方案。
 2. BMC 後台 → Webhooks 新增,URL 填 `https://<worker>/api/license/bmc-webhook`,複製**簽章密鑰**。
-3. 設密鑰;Resend 用來把碼 email 給贊助者(需先在 Resend 驗證寄件網域):
+3. 設密鑰;Brevo(app.brevo.com)用來把碼 email 給贊助者(需先在 Brevo 驗證寄件者/網域):
 
    ```bash
    npx wrangler secret put BMC_WEBHOOK_SECRET   # BMC 給的 webhook secret
-   npx wrangler secret put RESEND_API_KEY       # Resend API key
-   # 寄件者放 vars 或 secret 皆可,例:
-   #   [vars] RESEND_FROM = "palserver GUI <noreply@你的網域>"
+   npx wrangler secret put BREVO_API_KEY        # Brevo API key(SMTP & API → API Keys）
+   # 寄件者可用環境變數覆寫(預設 palserver GUI <palserver-gui@iosoftware.ai>),例:
+   #   [vars] BREVO_FROM_EMAIL = "palserver-gui@iosoftware.ai"
+   #   [vars] BREVO_FROM_NAME  = "palserver GUI"
    ```
 
 流程:會員 `membership.started` → 建碼並 email 給贊助者;`membership.updated`(續訂)→ 延長效期;

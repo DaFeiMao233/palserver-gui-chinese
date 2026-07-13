@@ -4,6 +4,7 @@ import { WORLD_OPTIONS, type OptionMeta } from "./options.js";
 export * from "./options.js";
 export * from "./commands.js";
 export * from "./engine-options.js";
+export * from "./launch-options.js";
 export * from "./paldefender-options.js";
 export * from "./pal-stats-options.js";
 export * from "./features.js";
@@ -223,6 +224,10 @@ export interface PlayerDetail {
   teamCount: number;
   palboxCount: number;
   items: PdItemSlot[];
+  /** 玩家存在但 /pals 端點抓不到(PalDefender 目前未把 /pals 標為支援離線玩家)。 */
+  palsUnavailable?: boolean;
+  /** 玩家存在但 /items 端點抓不到(同上,離線玩家常見)。 */
+  itemsUnavailable?: boolean;
   /** 已解鎖科技(PalDefender 1.8+ /techs);取不到時 null。 */
   techs: PlayerTechs | null;
   /** 進度概要(PalDefender 1.8+ /progression);取不到時 null。 */
@@ -432,6 +437,34 @@ export interface RestMetrics {
   days: number;
 }
 
+/* ── REST /game-data (Palworld 1.0+): world actor snapshot ── */
+
+export interface GameDataActor {
+  Type: "Character" | "PalBox";
+  UnitType?: "Player" | "OtomoPal" | "BaseCampPal" | "WildPal" | "NPC";
+  InstanceID: string;
+  NickName: string;
+  TrainerInstanceID?: string;
+  TrainerNickName?: string;
+  userid?: string;
+  ip?: string;
+  level?: number;
+  HP?: number;
+  MaxHP?: number;
+  GuildID?: string;
+  GuildName?: string;
+  LocationX: number;
+  LocationY: number;
+  LocationZ: number;
+}
+
+export interface GameDataSnapshot {
+  Time: string;
+  FPS: number;
+  AverageFPS: number;
+  ActorData: GameDataActor[];
+}
+
 /* World-coordinate conversion. The REST API reports Unreal/save-file
  * coordinates; the in-game map uses a [-1000, 1000] square. Offsets are the
  * midpoints of the sav bounds and the scale is sav units per map unit, from
@@ -447,7 +480,9 @@ export const WORLD_OFFSET = { northSouth: 123888, eastWest: -158000 } as const;
 export const WORLD_SCALE = 459;
 export const MAP_BOUND = 1000;
 
-/** Map coordinates as the game shows them: x grows east, y grows north. */
+/** Map coordinates as the game shows them: x grows east, y grows north.
+ *  這組小座標(約 -1000~1000)正是 PalDefender tp / spawn 等指令吃的「Map coordinates」,
+ *  所以地圖描點直接用 Leaflet 的 latlng(lat=mapY, lng=mapX)即可,不需再轉世界座標。 */
 export function savToMap(savX: number, savY: number): { x: number; y: number } {
   return {
     x: (savY + WORLD_OFFSET.eastWest) / WORLD_SCALE,

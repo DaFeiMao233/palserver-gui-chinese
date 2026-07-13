@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FiRefreshCw, FiMap, FiX, FiHome, FiUsers, FiStar, FiMoon, FiMapPin, FiExternalLink } from "react-icons/fi";
+import { GiCrownedSkull } from "react-icons/gi";
 import * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -75,6 +76,18 @@ const LANDMARK_STYLE: Record<string, { icon: string; size: number; label: string
   Dungeon: { icon: "/game-data/landmark-icons/dungeon.png", size: 22, label: "地牢" },
 };
 
+/** Field bosses (Alpha Pals) from paldb.cc's map data — a separate layer from
+ * landmarks. Each carries the Pal's portrait icon (shared with pals/) so the
+ * marker shows which boss it is; ipos is already in our map coord system. */
+interface Boss {
+  name: { en: string; zh: string; ja: string };
+  x: number;
+  y: number;
+  lv?: number;
+  /** Pal portrait filename within game-data/pals/, if we have artwork. */
+  icon?: string;
+}
+
 /** Same deterministic "random Pal" avatar as the player list (PlayerAvatar):
  * hash the userId and pick a Pal that has artwork. Returns its icon URL. */
 function avatarIconUrl(seed: string, gameData: GameData | null): string | null {
@@ -111,14 +124,20 @@ export function MapTab({
   const [showBases, setShowBases] = useState(true);
   const [showLandmarks, setShowLandmarks] = useState(false);
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
+  const [showBosses, setShowBosses] = useState(false);
+  const [bosses, setBosses] = useState<Boss[]>([]);
   const [guildHint, setGuildHint] = useState(false);
 
-  // Static landmark set (bundled), loaded once.
+  // Static landmark + boss sets (bundled), loaded once.
   useEffect(() => {
     fetch("/game-data/landmarks.json")
       .then((r) => (r.ok ? (r.json() as Promise<Landmark[]>) : []))
       .then((d) => setLandmarks(Array.isArray(d) ? d : []))
       .catch(() => setLandmarks([]));
+    fetch("/game-data/bosses.json")
+      .then((r) => (r.ok ? (r.json() as Promise<Boss[]>) : []))
+      .then((d) => setBosses(Array.isArray(d) ? d : []))
+      .catch(() => setBosses([]));
   }, []);
 
   const refresh = useCallback(async () => {
@@ -203,6 +222,25 @@ export function MapTab({
                 <FiStar className="size-3.5 text-pal" />
               </button>
             ))}
+          {bosses.length > 0 &&
+            (guildsUnlocked ? (
+              <button
+                className={`${btnGhost} inline-flex items-center gap-1.5 ${showBosses ? "border-pal text-pal" : "opacity-60"}`}
+                onClick={() => setShowBosses((v) => !v)}
+              >
+                <GiCrownedSkull className="size-4" /> {t("野外頭目")}
+                <FiStar className="size-3.5 text-pal" />
+              </button>
+            ) : (
+              <button
+                className={`${btnGhost} inline-flex items-center gap-1.5 opacity-70`}
+                title={t("此功能為贊助者專屬功能,可在設定頁輸入贊助者識別碼解鎖。")}
+                onClick={() => setGuildHint((v) => !v)}
+              >
+                <GiCrownedSkull className="size-4" /> {t("野外頭目")}
+                <FiStar className="size-3.5 text-pal" />
+              </button>
+            ))}
           {guildsUnlocked ? (
             <button
               className={`${btnGhost} inline-flex items-center gap-1.5 ${showBases ? "border-pal text-pal" : "opacity-60"}`}
@@ -256,11 +294,13 @@ export function MapTab({
           guilds={guilds}
           pdPlayers={pdPlayers}
           landmarks={landmarks}
+          bosses={bosses}
           lang={lang}
           showPlayers={showPlayers}
           showOffline={showOffline}
           showBases={showBases}
           showLandmarks={showLandmarks}
+          showBosses={showBosses}
           gameData={gameData}
           onGuildClick={setGuildDetailId}
           onPlayerClick={(id, label) => setPlayerDetail({ id, label })}
@@ -389,8 +429,8 @@ function GuildDetailModal({
               </h3>
               <div className="flex flex-col divide-y divide-line">
                 {detail.members.map((m) => (
-                  <div key={m.playerUid} className="flex items-center justify-between gap-2 py-1.5 text-sm">
-                    <span className="truncate font-bold">{m.name || "—"}</span>
+                  <div key={m.playerUid} className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
+                    <span className="min-w-0 truncate font-bold">{m.name || "—"}</span>
                     <span
                       className={`shrink-0 text-xs font-bold ${
                         m.status.toLowerCase() === "online" ? "text-grass" : "text-ink-muted"
@@ -411,8 +451,8 @@ function GuildDetailModal({
                 {detail.camps.map((c) => {
                   const m = savToMap(c.worldX, c.worldY);
                   return (
-                    <div key={c.id} className="flex items-center justify-between gap-2 py-1.5 text-sm">
-                      <span className="font-bold">
+                    <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
+                      <span className="min-w-0 font-bold">
                         Lv.{c.level}
                         {c.state ? <span className="ml-2 text-xs font-normal text-ink-muted">{c.state}</span> : null}
                       </span>
@@ -447,11 +487,13 @@ function PlayerMap({
   guilds,
   pdPlayers,
   landmarks,
+  bosses,
   lang,
   showPlayers,
   showOffline,
   showBases,
   showLandmarks,
+  showBosses,
   gameData,
   onGuildClick,
   onPlayerClick,
@@ -462,11 +504,17 @@ function PlayerMap({
    * (when showOffline) provides offline players' last-saved positions. */
   pdPlayers: PdPlayerSummary[];
   landmarks: Landmark[];
+<<<<<<< HEAD
   lang: "zh" | "zh-cn" | "en" | "ja";
+=======
+  bosses: Boss[];
+  lang: "zh" | "en" | "ja";
+>>>>>>> upstream/main
   showPlayers: boolean;
   showOffline: boolean;
   showBases: boolean;
   showLandmarks: boolean;
+  showBosses: boolean;
   gameData: GameData | null;
   onGuildClick?: (guildId: string) => void;
   /** Open the full player-detail view (same as the player list). */
@@ -583,9 +631,39 @@ function PlayerMap({
       }
     }
 
+    // Field bosses (Alpha Pals): a distinct red-framed Pal portrait with a
+    // crown badge + level — deliberately unlike the round guild-ringed player
+    // avatars (no ping) and separate from the landmark layer.
+    if (showBosses) {
+      const BS = 36;
+      for (const b of bosses) {
+        const iconUrl = b.icon ? palIconUrl(b.icon) : null;
+        const icon = L.divIcon({
+          className: "pmap-boss-wrap",
+          iconSize: [BS, BS],
+          iconAnchor: [BS / 2, BS / 2],
+          tooltipAnchor: [0, -BS / 2],
+          html:
+            `<span class="pmap-boss" style="width:${BS}px;height:${BS}px">` +
+            (iconUrl ? `<img src="${escapeHtml(iconUrl)}" alt="" />` : "") +
+            `<span class="pmap-boss-badge"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M4 17l-2-10 5.5 4L12 4l4.5 7L22 7l-2 10z"/></svg></span>` +
+            (b.lv ? `<span class="pmap-boss-lv">${b.lv}</span>` : "") +
+            `</span>`,
+        });
+        L.marker([b.y, b.x], { icon, riseOnHover: true })
+          .bindTooltip(
+            `<div style="font-weight:800">${escapeHtml(b.name[lang] || b.name.en)}</div>` +
+              `<div>${t("野外頭目")}${b.lv ? ` · Lv.${b.lv}` : ""}</div>`,
+            { direction: "top", className: "pmap-detail" },
+          )
+          .addTo(group);
+      }
+    }
+
     // Guild bases first (under players). world_pos → savToMap, same frame.
     // The whole guild feature is sponsor-only, so if we have any guild data the
     // viewer is a sponsor — bases are always coloured, named, and clickable.
+    // Marker = the in-game Palbox art on a guild-coloured ring.
     if (showBases) {
       for (const g of guilds) {
         const color = guildColor(g.id);
@@ -593,12 +671,12 @@ function PlayerMap({
           const { x, y } = savToMap(b.worldX, b.worldY);
           const icon = L.divIcon({
             className: "pmap-base-wrap",
-            iconSize: [26, 26],
-            iconAnchor: [13, 13],
-            tooltipAnchor: [0, -13],
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+            tooltipAnchor: [0, -16],
             html:
-              `<span class="pmap-base" style="background:${color}">` +
-              `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>` +
+              `<span class="pmap-base" style="border-color:${color}">` +
+              `<img src="/game-data/landmark-icons/palbox.webp" alt="" />` +
               `</span>`,
           });
           const marker = L.marker([y, x], { icon });
@@ -687,7 +765,7 @@ function PlayerMap({
         marker.on("click", () => onPlayerClickRef.current?.(p.userId, p.name));
         group.addLayer(marker);
       }
-  }, [players, guilds, pdPlayers, landmarks, lang, showPlayers, showOffline, showBases, showLandmarks, gameData]);
+  }, [players, guilds, pdPlayers, landmarks, bosses, lang, showPlayers, showOffline, showBases, showLandmarks, showBosses, gameData]);
 
   return <div ref={containerRef} className="h-full w-full rounded-xl bg-card-soft" />;
 }

@@ -2,6 +2,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { GiSheep, GiEggClutch } from "react-icons/gi";
 import { FiDownload, FiHeart, FiHelpCircle, FiPlus, FiSettings, FiAlertTriangle } from "react-icons/fi";
 import type { Backend, InstanceSummary } from "@palserver/shared";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  rectSortingStrategy,
+  arrayMove,
+  useSortable,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { AgentClient, loadConnection, saveConnection, type Connection } from "./api";
 import { usePromoConfig } from "./promoConfig";
 import { MapTab } from "./MapTab";
@@ -13,7 +30,7 @@ import { Mascot } from "./Mascot";
 import { AnnouncementPopup } from "./AnnouncementModal";
 import { OPEN_SETTINGS_EVENT, SiteFooter } from "./SiteFooter";
 import { ThemeToggle } from "./theme";
-import { LangSelect, useI18n } from "./i18n";
+import { LangSelect, useI18n, t as translate } from "./i18n";
 import { Overlay, Select, StatusBadge, btn, btnGhost, card, errorCls, inputCls, labelCls } from "./ui";
 
 export default function App() {
@@ -89,13 +106,13 @@ function Shell({ conn, onDisconnect }: { conn: Connection; onDisconnect: () => v
 
   return (
     // data-content-root:左下角的 SiteFooter 靠它判斷自己有沒有蓋到內容。
-    <div data-content-root className="mx-auto max-w-[1200px] p-6">
-      <header className="mb-6 flex items-center justify-between">
+    <div data-content-root className="mx-auto max-w-[1200px] p-4 sm:p-6">
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-2.5">
         <button className="flex items-center gap-2.5" onClick={() => setSelectedId(null)}>
-          <img src="/logo.png" alt="" className="size-10 rounded-xl" />
-          <h1 className="text-[22px] font-extrabold tracking-wide">palserver GUI</h1>
+          <img src="/logo.png" alt="" className="size-9 rounded-xl sm:size-10" />
+          <h1 className="text-lg font-extrabold tracking-wide sm:text-[22px]">palserver GUI</h1>
         </button>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <LangSelect />
           <ThemeToggle />
           <a
@@ -103,25 +120,25 @@ function Shell({ conn, onDisconnect }: { conn: Connection; onDisconnect: () => v
             href={faq}
             target="_blank"
             rel="noreferrer"
+            title={t("常見問題")}
           >
-            <FiHelpCircle className="size-4" /> {t("常見問題")}
+            <FiHelpCircle className="size-4" /> <span className="hidden sm:inline">{t("常見問題")}</span>
           </a>
           <button
             className={`${btnGhost} inline-flex items-center gap-1.5`}
             onClick={() => setShowCredits(true)}
             data-testid="open-credits"
+            title={t("感謝名單")}
           >
-            <FiHeart className="size-4" /> {t("感謝名單")}
+            <FiHeart className="size-4" /> <span className="hidden sm:inline">{t("感謝名單")}</span>
           </button>
           <button
             className={`${btnGhost} inline-flex items-center gap-1.5`}
             onClick={() => setShowSettings(true)}
             data-testid="open-settings"
+            title={t("設定")}
           >
-            <FiSettings className="size-4" /> {t("設定")}
-          </button>
-          <button className={btnGhost} onClick={onDisconnect}>
-            {t("中斷連線")}
+            <FiSettings className="size-4" /> <span className="hidden sm:inline">{t("設定")}</span>
           </button>
         </div>
       </header>
@@ -143,11 +160,45 @@ function Shell({ conn, onDisconnect }: { conn: Connection; onDisconnect: () => v
   );
 }
 
+// 首頁伺服器卡片的自訂排序(使用者拖曳後存 localStorage;新建的伺服器排在最後)。
+const ORDER_KEY = "palserver.instanceOrder";
+function loadInstanceOrder(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(ORDER_KEY) ?? "[]");
+    return Array.isArray(v) ? (v as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+function saveInstanceOrder(ids: string[]): void {
+  localStorage.setItem(ORDER_KEY, JSON.stringify(ids));
+}
+/** 依儲存的順序排列;不在順序表裡的(新伺服器)沿用原本順序排在後面。 */
+function sortByOrder(list: InstanceSummary[], order: string[]): InstanceSummary[] {
+  const rank = new Map(order.map((id, i) => [id, i] as const));
+  return [...list].sort((a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity));
+}
+
 function Dashboard({ client, onOpen }: { client: AgentClient; onOpen: (id: string) => void }) {
   const { t } = useI18n();
   const [instances, setInstances] = useState<InstanceSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [order, setOrder] = useState<string[]>(loadInstanceOrder);
+
+  const ordered = instances ? sortByOrder(instances, order) : [];
+  // 拖曳需要移動 8px 才啟動,讓「單純點擊卡片」照樣開啟該伺服器;鍵盤也能排序(無障礙)。
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const ids = ordered.map((i) => i.id);
+    const next = arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id)));
+    setOrder(next);
+    saveInstanceOrder(next);
+  };
 
   const refresh = useCallback(async () => {
     try {
@@ -190,34 +241,15 @@ function Dashboard({ client, onOpen }: { client: AgentClient; onOpen: (id: strin
           {t("還沒有伺服器,建立第一個吧!")}
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(290px,1fr))] gap-3.5">
-          {instances.map((inst) => (
-            <button
-              className={`${card} text-left transition hover:-translate-y-0.5 hover:shadow-(--shadow-cute-hover)`}
-              key={inst.id}
-              onClick={() => onOpen(inst.id)}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <strong className="text-base font-extrabold">{inst.name}</strong>
-                <StatusBadge status={inst.status} />
-              </div>
-              <p className="mt-1 text-[13px] text-ink-muted">
-                {inst.enhancements.length > 0 ? t("強化") : t("原味")} · UDP {inst.gamePort}
-                {inst.gameVersion && ` · ${inst.gameVersion}`}
-              </p>
-              {inst.updateAvailable && (
-                <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-sun/40 bg-sun/15 px-2.5 py-1 text-xs font-bold text-sun">
-                  <FiDownload className="size-3.5" /> {t("有新版本可更新")}
-                </p>
-              )}
-              {inst.installError && (
-                <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-berry/40 bg-berry/10 px-2.5 py-1 text-xs font-bold text-berry">
-                  <FiAlertTriangle className="size-3.5" /> {t("安裝失敗")}
-                </p>
-              )}
-            </button>
-          ))}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={ordered.map((i) => i.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(min(290px,100%),1fr))] gap-3.5">
+              {ordered.map((inst) => (
+                <SortableServerCard key={inst.id} inst={inst} onOpen={onOpen} />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
       {showCreate && (
         <CreateDialog
@@ -230,6 +262,46 @@ function Dashboard({ client, onOpen }: { client: AgentClient; onOpen: (id: strin
         />
       )}
     </>
+  );
+}
+
+/** 單張可拖曳排序的伺服器卡片(@dnd-kit)。整張卡是拖曳把手,單純點擊仍會開啟。 */
+function SortableServerCard({ inst, onOpen }: { inst: InstanceSummary; onOpen: (id: string) => void }) {
+  useI18n(); // 語言切換時重繪
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: inst.id,
+  });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`${card} touch-none cursor-grab text-left transition-shadow hover:shadow-(--shadow-cute-hover) active:cursor-grabbing ${
+        isDragging ? "z-10 opacity-60 shadow-(--shadow-cute-hover)" : ""
+      }`}
+      onClick={() => onOpen(inst.id)}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <strong className="text-base font-extrabold">{inst.name}</strong>
+        <StatusBadge status={inst.status} />
+      </div>
+      <p className="mt-1 text-[13px] text-ink-muted">
+        {inst.enhancements.length > 0 ? translate("強化") : translate("原味")} · UDP {inst.gamePort}
+        {inst.gameVersion && ` · ${inst.gameVersion}`}
+      </p>
+      {inst.updateAvailable && (
+        <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-sun/40 bg-sun/15 px-2.5 py-1 text-xs font-bold text-sun">
+          <FiDownload className="size-3.5" /> {translate("有新版本可更新")}
+        </p>
+      )}
+      {inst.installError && (
+        <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-berry/40 bg-berry/10 px-2.5 py-1 text-xs font-bold text-berry">
+          <FiAlertTriangle className="size-3.5" /> {translate("安裝失敗")}
+        </p>
+      )}
+    </button>
   );
 }
 
@@ -303,7 +375,7 @@ function CreateDialog({
   return (
     <Overlay onClose={onClose}>
       <form
-        className={`${card} flex w-[430px] max-w-full flex-col gap-3`}
+        className={`${card} flex max-h-[90vh] w-[430px] max-w-full flex-col gap-3 overflow-y-auto`}
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
       >
@@ -331,9 +403,30 @@ function CreateDialog({
           {t("運行方式")}
           <Select value={backend} onChange={(e) => setBackend(e.target.value as "native" | "docker" | "k8s")}>
             <option value="native" disabled={!availableBackends.includes("native")}>{t("原生(直接在這台主機上運行,推薦)")}</option>
-            <option value="docker" disabled={!availableBackends.includes("docker")}>{t("Docker 容器(beta)")}</option>
+            <option
+              value="docker"
+              disabled={!availableBackends.includes("docker")}
+              title={
+                !availableBackends.includes("docker")
+                  ? platform === "win32"
+                    ? t("Windows 的 WSL2 UDP 不支援遊戲伺服器,請改用原生或管理遠端 k8s 實例")
+                    : t("未偵測到 Docker,請先安裝並啟動 Docker")
+                  : undefined
+              }
+            >
+              {t("Docker 容器(beta)")}
+              {!availableBackends.includes("docker")
+                ? platform === "win32"
+                  ? t("(Windows 不支援,請用原生或遠端 k8s)")
+                  : t("(未偵測到 Docker)")
+                : platform === "darwin"
+                  ? t("(非 x86 平台未經驗證)")
+                  : ""}
+            </option>
             {advancedMode && (
-              <option value="k8s" disabled={!availableBackends.includes("k8s")}>{t("Kubernetes(beta)")}</option>
+              <option value="k8s" disabled={!availableBackends.includes("k8s")}>
+                {t("Kubernetes(beta)")}{t("(遠端管理,不在本機運行)")}
+              </option>
             )}
           </Select>
         </label>

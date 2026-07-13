@@ -29,22 +29,32 @@ const WANT = screens.length ? screens : ["login", "announcement", "engine", "mod
 const CONN = JSON.stringify({ url: AGENT, token: TOKEN });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 與既有截圖同框:1320 寬,分頁頁面 848 高、連線/公告 984 高(視窗裁切,非整頁)。
+const HEIGHTS = { login: 984, announcement: 984, engine: 848, mods: 848 };
+
 async function shot(page, lang, name) {
+  await page.setViewportSize({ width: W, height: HEIGHTS[name] || 848 });
+  await sleep(400);
   const out = path.join(ASSETS, lang, name + ".jpg");
-  await page.screenshot({ path: out, type: "jpeg", quality: 92, fullPage: true });
+  await page.screenshot({ path: out, type: "jpeg", quality: 92, fullPage: false });
   console.log("wrote", lang + "/" + name + ".jpg");
 }
 
 /** 新 context:預設注入語言;connected=true 時再注入連線(否則走首次連線畫面)。 */
 async function ctxFor(browser, lang, connected) {
-  const ctx = await browser.newContext({ viewport: { width: W, height: 900 }, deviceScaleFactor: 2 });
+  const ctx = await browser.newContext({ viewport: { width: W, height: 900 }, deviceScaleFactor: 1 });
   await ctx.addInitScript(
-    ([lang, conn, connected]) => {
+    ([lang, conn, connected, seen]) => {
       localStorage.setItem("palserver.lang", lang);
-      if (connected) localStorage.setItem("palserver.connection", conn);
-      else localStorage.removeItem("palserver.connection");
+      if (connected) {
+        localStorage.setItem("palserver.connection", conn);
+        // 標記公告為已看,避免彈窗擋住導覽(截 announcement 時另用 markUnseen 的 context)。
+        localStorage.setItem("palserver.announcementsSeen", seen);
+      } else {
+        localStorage.removeItem("palserver.connection");
+      }
     },
-    [lang, CONN, connected],
+    [lang, CONN, connected, JSON.stringify(["2026-07-welcome-2-0", "2026-07-10-palguard-1-0"])],
   );
   return ctx;
 }
@@ -66,7 +76,7 @@ async function main() {
       const ctx = await ctxFor(browser, lang, false);
       const page = await ctx.newPage();
       // ?setup 強制顯示「第一次連線」畫面(否則 same-origin agent 會自動連線跳過)。
-      await page.goto(AGENT + "/?setup", { waitUntil: "networkidle" });
+      await page.goto(AGENT + "/?setup", { waitUntil: "domcontentloaded" });
       await sleep(1500);
       await shot(page, lang, "login");
       await ctx.close();
@@ -74,7 +84,7 @@ async function main() {
     if (WANT.some((s) => ["announcement", "engine", "mods"].includes(s))) {
       const ctx = await ctxFor(browser, lang, true);
       const page = await ctx.newPage();
-      await page.goto(AGENT, { waitUntil: "networkidle" });
+      await page.goto(AGENT, { waitUntil: "domcontentloaded" });
       await sleep(1800);
       if (WANT.includes("announcement")) {
         // 公告彈窗會在 Dashboard 自動跳(未看過 + 啟用中的公告)。
@@ -96,7 +106,7 @@ async function main() {
         await page.goBack().catch(() => {});
       }
       if (WANT.includes("mods")) {
-        await page.goto(AGENT, { waitUntil: "networkidle" });
+        await page.goto(AGENT, { waitUntil: "domcontentloaded" });
         await sleep(1200);
         await openInstanceTab(page, "mods");
         await shot(page, lang, "mods");

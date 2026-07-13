@@ -2,17 +2,17 @@ import { useEffect, useState } from "react";
 import { FiChevronDown } from "react-icons/fi";
 
 /**
- * i18n:�?zh-TW,原文)/ �?/ 日�?
+ * i18n:中(zh-TW,原文)/ 英 / 日。
  *
- * 設計:程式碼裡的字串一律寫中文原文,t() 拿原文當 key 查字�?en/ja 字典�?
- * public/i18n/{en,ja}.json 的「中�?�?譯文」對照表,查不到就顯示中文原文,
- * 所以漏翻不會壞版面。插值用 {名稱} 佔位,�?t("�?{n} �?, { n })�?
+ * 設計:程式碼裡的字串一律寫中文原文,t() 拿原文當 key 查字典;en/ja 字典是
+ * public/i18n/{en,ja}.json 的「中文 → 譯文」對照表,查不到就顯示中文原文,
+ * 所以漏翻不會壞版面。插值用 {名稱} 佔位,例:t("第 {n} 天", { n })。
  *
  * 字典載入比照 promoConfig 三層:
- *  1. localStorage 快取(上次抓到的遠端版)先上,離線也有最新已知譯�?
- *  2. 同源 bundled �?/i18n/xx.json)墊底;
- *  3. 背景�?GitHub raw(source of truth),抓到有變就更新快�?+ 重繪 —�?
- *     翻譯檔改了不用重新出�?使用者下次載入就拿到�?
+ *  1. localStorage 快取(上次抓到的遠端版)先上,離線也有最新已知譯文;
+ *  2. 同源 bundled 檔(/i18n/xx.json)墊底;
+ *  3. 背景抓 GitHub raw(source of truth),抓到有變就更新快取 + 重繪 ——
+ *     翻譯檔改了不用重新出版,使用者下次載入就拿到。
  */
 
 export type Lang = "zh" | "zh-cn" | "en" | "ja";
@@ -48,7 +48,7 @@ function detectLang(): Lang {
 
 let lang: Lang = detectLang();
 const dicts: Partial<Record<Lang, Dict>> = {};
-const loaded = new Set<Lang>(); // 這�?session 已經跑過載入流程的語言
+const loaded = new Set<Lang>(); // 這個 session 已經跑過載入流程的語言
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
 
@@ -68,7 +68,7 @@ async function loadDict(l: Lang): Promise<void> {
     dicts[l] = cached;
     notify();
   }
-  // bundled 墊底(沒有快取才需�?有快取時快取一定不�?bundled �?
+  // bundled 墊底(沒有快取才需要,有快取時快取一定不比 bundled 舊)
   if (!cached) {
     try {
       const res = await fetch(`${LOCAL_BASE}${l}.json`, { signal: AbortSignal.timeout(4000) });
@@ -80,7 +80,7 @@ async function loadDict(l: Lang): Promise<void> {
       /* 沒有 bundled 檔就先用原文 */
     }
   }
-  // 遠端(GitHub)為準,抓到有變才更�?
+  // 遠端(GitHub)為準,抓到有變才更新
   try {
     const res = await fetch(`${REMOTE_BASE}${l}.json`, {
       cache: "no-cache",
@@ -93,13 +93,13 @@ async function loadDict(l: Lang): Promise<void> {
         try {
           localStorage.setItem(DICT_CACHE_PREFIX + l, JSON.stringify(remote));
         } catch {
-          /* 存不進去就下次再�?*/
+          /* 存不進去就下次再抓 */
         }
         notify();
       }
     }
   } catch {
-    /* 離線就用現有�?*/
+    /* 離線就用現有的 */
   }
 }
 
@@ -120,7 +120,7 @@ export function setLang(next: Lang): void {
   notify();
 }
 
-/** 翻譯:原文(中文)�?目前語言;插�?{k} �?params[k] 代入�?*/
+/** 翻譯:原文(中文)→ 目前語言;插值 {k} 以 params[k] 代入。 */
 export function t(source: string, params?: Record<string, string | number>): string {
   let out = (lang !== "zh" && dicts[lang]?.[source]) || source;
   if (params) {
@@ -129,7 +129,7 @@ export function t(source: string, params?: Record<string, string | number>): str
   return out;
 }
 
-/** React 入口:訂閱語言/字典變化,回傳 t 與目前語言�?*/
+/** React 入口:訂閱語言/字典變化,回傳 t 與目前語言。 */
 export function useI18n(): { lang: Lang; setLang: (l: Lang) => void; t: typeof t } {
   const [, bump] = useState(0);
   useEffect(() => {
@@ -142,14 +142,14 @@ export function useI18n(): { lang: Lang; setLang: (l: Lang) => void; t: typeof t
   return { lang, setLang, t };
 }
 
-/** 啟動:�?<html lang> 並預載目前語言的字�?main.tsx 掛載前呼�?�?*/
+/** 啟動:套 <html lang> 並預載目前語言的字典(main.tsx 掛載前呼叫)。 */
 export function initI18n(): void {
   document.documentElement.lang = lang === "zh" ? "zh-TW" : lang === "zh-cn" ? "zh-CN" : lang;
   void loadDict(lang);
 }
 
-/** header 上的語言下拉選單(樣式比照 ghost 按鈕)。原生箭頭位置各瀏覽�?
- * 不一,改用 appearance-none + 自繪箭頭,右側留出舒服的間距�?*/
+/** header 上的語言下拉選單(樣式比照 ghost 按鈕)。原生箭頭位置各瀏覽器
+ * 不一,改用 appearance-none + 自繪箭頭,右側留出舒服的間距。 */
 export function LangSelect() {
   const { lang: current, setLang: set } = useI18n();
   return (

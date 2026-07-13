@@ -97,8 +97,10 @@ async function main() {
       // 連線但不標已看 → 公告彈窗會自動跳(內文依語言 filter)。
       const ctx = await ctxFor(browser, lang, true, false);
       const page = await ctx.newPage();
+      // 擋掉 GitHub 遠端公告(可能還是舊版沒傳播),強制用本機最新的 /announcement.md。
+      await page.route("**/raw.githubusercontent.com/**", (r) => r.abort());
       await page.goto(APP, { waitUntil: "domcontentloaded" });
-      await sleep(3000); // 等公告從遠端載入 + 彈窗出現
+      await sleep(3000); // 等公告載入 + 彈窗出現
       await shot(page, lang, "announcement");
       await ctx.close();
     }

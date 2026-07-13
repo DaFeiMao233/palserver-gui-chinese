@@ -368,7 +368,7 @@ function OverviewTab({
       {!hiddenCards.includes("ports") && (
         <div className="rounded-cute border-2 border-sun/45 bg-sun/10 px-4 py-3">
           <div className="flex items-start justify-between gap-2">
-            <p className="inline-flex items-center gap-2 text-sm font-extrabold text-sun">
+            <p className="inline-flex min-w-0 items-center gap-2 text-sm font-extrabold text-sun">
               <FiAlertTriangle className="size-4 shrink-0" /> {t("多台伺服器?這些埠都不能重複")}
             </p>
             <button

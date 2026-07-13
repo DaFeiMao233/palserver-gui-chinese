@@ -14,8 +14,8 @@ export function MigrationCard({ onDismiss }: { onDismiss?: () => void }) {
   return (
     <div className={`${card} flex flex-col gap-3`}>
       <div className="flex items-start justify-between gap-2">
-        <h3 className="inline-flex items-center gap-2 text-sm font-extrabold text-ink-muted">
-          <FiUploadCloud className="size-4 text-pal" /> {t("存檔遷移")}
+        <h3 className="inline-flex min-w-0 items-center gap-2 text-sm font-extrabold text-ink-muted">
+          <FiUploadCloud className="size-4 shrink-0 text-pal" /> {t("存檔遷移")}
         </h3>
         {onDismiss && (
           <button

@@ -204,6 +204,203 @@
   background-image: linear-gradient(120deg, rgb(36 227 154 / 0.12), rgb(34 211 238 / 0.06) 45%, transparent 82%);
 }
 
+/* ══ 更多主題系列(贊助者限定):午夜紫、櫻花粉、橘色貓貓。 ══ */
+
+/* ── 午夜紫 · 淺色:柔薰衣草底 + 紫羅蘭主色 ── */
+:root[data-theme="lilac-light"] {
+  color-scheme: light;
+  --color-sky-soft: #f6f2fe;
+  --color-card: #ffffff;
+  --color-card-soft: #efeafc;
+  --color-ink: #2a2140;
+  --color-ink-muted: #7c6f9a;
+  --color-pal: #8b5cf6;
+  --color-pal-strong: #7c3aed;
+  --color-line: #e6ddf9;
+  --shadow-cute: 0 6px 18px rgb(139 92 246 / 0.16);
+  --shadow-cute-hover: 0 12px 28px rgb(139 92 246 / 0.26);
+}
+:root[data-theme="lilac-light"] body {
+  background-color: #f6f2fe;
+  background-image:
+    radial-gradient(1200px 560px at 12% -10%, rgb(167 139 250 / 0.22), transparent 60%),
+    radial-gradient(1000px 520px at 100% 4%, rgb(139 92 246 / 0.14), transparent 58%),
+    radial-gradient(1100px 620px at 52% 122%, rgb(196 181 253 / 0.16), transparent 60%);
+  background-attachment: fixed;
+}
+:root[data-theme="lilac-light"] .bg-pal {
+  background-image: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 55%, #7c3aed 100%);
+}
+:root[data-theme="lilac-light"] .bg-pal:hover {
+  background-image: linear-gradient(135deg, #b7a0fc 0%, #9a6df8 55%, #8b4ef0 100%);
+}
+:root[data-theme="lilac-light"] .bg-card {
+  background-image: linear-gradient(135deg, rgb(139 92 246 / 0.06), rgb(196 181 253 / 0.03) 45%, transparent 82%);
+}
+
+/* ── 午夜紫 · 深色:深邃午夜紫底 + 亮丁香紫主色 ── */
+:root[data-theme="lilac-dark"] {
+  color-scheme: dark;
+  --color-sky-soft: #17122a;
+  --color-card: #221a3c;
+  --color-card-soft: #2c224c;
+  --color-ink: #f0eafb;
+  --color-ink-muted: #b6a8d6;
+  --color-pal: #b79bff;
+  --color-pal-strong: #cdb8ff;
+  --color-line: #382d59;
+  --shadow-cute: 0 8px 24px rgb(0 0 0 / 0.5);
+  --shadow-cute-hover: 0 12px 32px rgb(0 0 0 / 0.62);
+}
+:root[data-theme="lilac-dark"] body {
+  background-color: #17122a;
+  background-image:
+    radial-gradient(1200px 620px at 10% -12%, rgb(167 139 250 / 0.28), transparent 58%),
+    radial-gradient(1000px 560px at 100% -4%, rgb(124 58 237 / 0.22), transparent 56%),
+    radial-gradient(1100px 620px at 55% 122%, rgb(183 155 255 / 0.14), transparent 60%);
+  background-attachment: fixed;
+}
+:root[data-theme="lilac-dark"] .bg-pal {
+  background-image: linear-gradient(135deg, #c4b0ff 0%, #a78bfa 55%, #8b5cf6 100%);
+  color: #1a1030;
+}
+:root[data-theme="lilac-dark"] .bg-pal:hover {
+  background-image: linear-gradient(135deg, #d3c3ff 0%, #b79bff 55%, #9a6df8 100%);
+}
+:root[data-theme="lilac-dark"] .bg-card {
+  background-image: linear-gradient(135deg, rgb(167 139 250 / 0.12), rgb(124 58 237 / 0.05) 45%, transparent 82%);
+}
+
+/* ── 櫻花粉 · 淺色:淡櫻底 + 櫻花粉主色 ── */
+:root[data-theme="cherry-light"] {
+  color-scheme: light;
+  --color-sky-soft: #fdf1f7;
+  --color-card: #ffffff;
+  --color-card-soft: #fce3ef;
+  --color-ink: #40222f;
+  --color-ink-muted: #a06f82;
+  --color-pal: #ee5fa0;
+  --color-pal-strong: #e0478f;
+  --color-line: #f8d6e6;
+  --shadow-cute: 0 6px 18px rgb(238 95 160 / 0.18);
+  --shadow-cute-hover: 0 12px 28px rgb(238 95 160 / 0.28);
+}
+:root[data-theme="cherry-light"] body {
+  background-color: #fdf1f7;
+  background-image:
+    radial-gradient(1200px 560px at 12% -10%, rgb(249 168 212 / 0.30), transparent 60%),
+    radial-gradient(1000px 520px at 100% 4%, rgb(244 114 182 / 0.16), transparent 58%),
+    radial-gradient(1100px 620px at 52% 122%, rgb(251 207 232 / 0.20), transparent 60%);
+  background-attachment: fixed;
+}
+:root[data-theme="cherry-light"] .bg-pal {
+  background-image: linear-gradient(135deg, #f9a8d4 0%, #f472b6 50%, #ec4899 100%);
+}
+:root[data-theme="cherry-light"] .bg-pal:hover {
+  background-image: linear-gradient(135deg, #fbbcdf 0%, #f889c4 50%, #f05aa8 100%);
+}
+:root[data-theme="cherry-light"] .bg-card {
+  background-image: linear-gradient(135deg, rgb(244 114 182 / 0.06), rgb(251 207 232 / 0.04) 45%, transparent 82%);
+}
+
+/* ── 櫻花粉 · 深色:深梅玫底 + 亮櫻花粉主色 ── */
+:root[data-theme="cherry-dark"] {
+  color-scheme: dark;
+  --color-sky-soft: #2a1620;
+  --color-card: #3a2130;
+  --color-card-soft: #472a3b;
+  --color-ink: #fdeef5;
+  --color-ink-muted: #d6a4ba;
+  --color-pal: #ff8ab8;
+  --color-pal-strong: #ffa6cb;
+  --color-line: #573446;
+  --shadow-cute: 0 8px 24px rgb(0 0 0 / 0.48);
+  --shadow-cute-hover: 0 12px 32px rgb(0 0 0 / 0.6);
+}
+:root[data-theme="cherry-dark"] body {
+  background-color: #2a1620;
+  background-image:
+    radial-gradient(1200px 620px at 10% -12%, rgb(255 138 184 / 0.26), transparent 58%),
+    radial-gradient(1000px 560px at 100% -4%, rgb(236 72 153 / 0.2), transparent 56%),
+    radial-gradient(1100px 620px at 55% 122%, rgb(249 168 212 / 0.12), transparent 60%);
+  background-attachment: fixed;
+}
+:root[data-theme="cherry-dark"] .bg-pal {
+  background-image: linear-gradient(135deg, #ffb0d2 0%, #ff8ab8 50%, #f45c9e 100%);
+  color: #2a0f1c;
+}
+:root[data-theme="cherry-dark"] .bg-pal:hover {
+  background-image: linear-gradient(135deg, #ffc4de 0%, #ffa0c8 50%, #ff72ae 100%);
+}
+:root[data-theme="cherry-dark"] .bg-card {
+  background-image: linear-gradient(135deg, rgb(255 138 184 / 0.12), rgb(236 72 153 / 0.05) 45%, transparent 82%);
+}
+
+/* ── 橘色貓貓 · 淺色:暖奶油底 + 薑橘主色(致敬橘貓吉祥物) ── */
+:root[data-theme="cat-light"] {
+  color-scheme: light;
+  --color-sky-soft: #fff6ec;
+  --color-card: #ffffff;
+  --color-card-soft: #ffedd8;
+  --color-ink: #3d2a1a;
+  --color-ink-muted: #977c62;
+  --color-pal: #f5943a;
+  --color-pal-strong: #ea7c1f;
+  --color-line: #f6ddc2;
+  --shadow-cute: 0 6px 18px rgb(245 148 58 / 0.18);
+  --shadow-cute-hover: 0 12px 28px rgb(245 148 58 / 0.28);
+}
+:root[data-theme="cat-light"] body {
+  background-color: #fff6ec;
+  background-image:
+    radial-gradient(1200px 560px at 12% -10%, rgb(251 146 60 / 0.24), transparent 60%),
+    radial-gradient(1000px 520px at 100% 4%, rgb(245 148 58 / 0.16), transparent 58%),
+    radial-gradient(1100px 620px at 52% 122%, rgb(255 213 168 / 0.22), transparent 60%);
+  background-attachment: fixed;
+}
+:root[data-theme="cat-light"] .bg-pal {
+  background-image: linear-gradient(135deg, #ffb057 0%, #f5943a 52%, #ec7c1c 100%);
+}
+:root[data-theme="cat-light"] .bg-pal:hover {
+  background-image: linear-gradient(135deg, #ffbf72 0%, #fca34e 52%, #f68a2e 100%);
+}
+:root[data-theme="cat-light"] .bg-card {
+  background-image: linear-gradient(135deg, rgb(245 148 58 / 0.06), rgb(255 213 168 / 0.04) 45%, transparent 82%);
+}
+
+/* ── 橘色貓貓 · 深色:暖焦糖深棕底 + 亮薑橘主色 ── */
+:root[data-theme="cat-dark"] {
+  color-scheme: dark;
+  --color-sky-soft: #241a11;
+  --color-card: #322416;
+  --color-card-soft: #3f2e1c;
+  --color-ink: #fbeedd;
+  --color-ink-muted: #c9ab8b;
+  --color-pal: #ff9d4d;
+  --color-pal-strong: #ffb570;
+  --color-line: #4a3824;
+  --shadow-cute: 0 8px 24px rgb(0 0 0 / 0.48);
+  --shadow-cute-hover: 0 12px 32px rgb(0 0 0 / 0.6);
+}
+:root[data-theme="cat-dark"] body {
+  background-color: #241a11;
+  background-image:
+    radial-gradient(1200px 620px at 10% -12%, rgb(255 157 77 / 0.26), transparent 58%),
+    radial-gradient(1000px 560px at 100% -4%, rgb(234 124 31 / 0.2), transparent 56%),
+    radial-gradient(1100px 620px at 55% 122%, rgb(255 183 112 / 0.12), transparent 60%);
+  background-attachment: fixed;
+}
+:root[data-theme="cat-dark"] .bg-pal {
+  background-image: linear-gradient(135deg, #ffb877 0%, #ff9d4d 52%, #f5822a 100%);
+  color: #2a1808;
+}
+:root[data-theme="cat-dark"] .bg-pal:hover {
+  background-image: linear-gradient(135deg, #ffc78e 0%, #ffad65 52%, #ff9440 100%);
+}
+:root[data-theme="cat-dark"] .bg-card {
+  background-image: linear-gradient(135deg, rgb(255 157 77 / 0.12), rgb(234 124 31 / 0.05) 45%, transparent 82%);
+}
+
 body {
   background-color: var(--color-sky-soft);
   background-image: radial-gradient(1200px 500px at 50% -10%, rgb(63 167 224 / 0.14) 0%, transparent 60%),

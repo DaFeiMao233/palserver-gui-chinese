@@ -80,7 +80,7 @@ const LANDMARK_STYLE: Record<string, { icon: string; size: number; label: string
  * landmarks. Each carries the Pal's portrait icon (shared with pals/) so the
  * marker shows which boss it is; ipos is already in our map coord system. */
 interface Boss {
-  name: { en: string; zh: string; ja: string };
+  name: { en: string; zh: string; "zh-cn": string; ja: string };
   x: number;
   y: number;
   lv?: number;
@@ -504,12 +504,8 @@ function PlayerMap({
    * (when showOffline) provides offline players' last-saved positions. */
   pdPlayers: PdPlayerSummary[];
   landmarks: Landmark[];
-<<<<<<< HEAD
-  lang: "zh" | "zh-cn" | "en" | "ja";
-=======
   bosses: Boss[];
-  lang: "zh" | "en" | "ja";
->>>>>>> upstream/main
+  lang: "zh" | "zh-cn" | "en" | "ja";
   showPlayers: boolean;
   showOffline: boolean;
   showBases: boolean;

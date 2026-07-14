@@ -1,43 +1,37 @@
-# palserver GUI — v2.0.3
+# palserver GUI — v2.0.5(緊急修正 · hotfix)
 
-手機 / 平板可用(響應式)· 安全與網路設定搬進面板 · 大量遊戲資料補漏
-Works on phone / tablet (responsive) · security & network settings in the panel · big game-data update
-スマホ / タブレット対応(レスポンシブ)· セキュリティ / ネットワーク設定をパネルに · ゲームデータ大幅補完
+修正:某些設定值會讓伺服器管理程式「打不開 / 網頁進不去」
+Hotfix: certain setting values could prevent the agent from starting ("won't open / page won't load")
+緊急修正:一部の設定値で agent が起動できない不具合
 
-> 這版有介面與 agent 的程式更新,需要新的執行檔:有開自動更新會自己抓,或依下方手動下載。
-> This release changes both the UI and the agent, so it needs the new build — the in-app updater will fetch it, or download below.
-> 今回は UI と agent 両方の更新のため新しいビルドが必要です。自動更新が有効なら自動取得、または下記から手動でどうぞ。
+> 只是一個修正的緊急版本 —— 有開自動更新會自己抓,或依下方手動下載。
+> A small emergency fix — the in-app updater fetches it, or download below.
+> 小さな緊急修正版です。自動更新で取得、または下記から。
 
 <details>
-<summary><b>🇹🇼 中文更新說明</b></summary>
+<summary><b>🇹🇼 中文</b></summary>
 
-- **手機 / 平板可用(響應式)** — 整個管理介面重新設計成 RWD,窄螢幕不再爆版:導覽列自動收合、彈窗可捲動、資料列自動換行。
-- **安全 / 網路設定搬進面板** — 以前只能靠環境變數(`PALSERVER_TLS` 等),現在直接在設定頁改:強制 token、HTTPS/TLS、監聽埠與位址、跨源公開站來源;改完可一鍵重啟套用(被環境變數鎖定的欄位會顯示為唯讀)。
-- **開機自動開瀏覽器** — 新增開關,可自行決定 agent 啟動時要不要自動打開管理介面。
-- **設定更順手** — 常駐的黃色提醒與總覽卡片都能按 X 收起,並在設定的「卡片隱藏」統一恢復;主題 / 更新 / 贊助者識別碼移到上方;「伺服器檔案」瀏覽器移到設定頁最上方。
-- **遊戲資料大補漏** — 補齊 268 個先前遺漏的物品(藥師島裝備、世界樹 / 覺醒素材、新彈藥、遠古護甲、飾品、藍圖等)。
+- **修正「執行檔閃退 / 網頁進不去」** — 只要 store 裡有**任何一個設定值超出範圍**(例如負重 `ItemWeightRate` 被設成 0,或匯入了舊版存的髒值),舊版在開機驗證時會**整個崩潰**,導致執行檔一閃就關、管理網頁也連不上。現在改成:單一壞值會**自動退回該項預設**、整筆壞掉則退回全預設,**絕不再讓程式開不起來**;合理範圍內的極端值(如超高經驗倍率)仍保留。
+
+如果你正好卡在這個狀況,更新到這版後就能正常開啟了。
 
 </details>
 
 <details>
 <summary><b>🇬🇧 English</b></summary>
 
-- **Works on phone / tablet (responsive)** — the whole panel was redesigned for small screens: the nav wraps, dialogs scroll, and data rows reflow instead of overflowing.
-- **Security & network settings in the panel** — what used to require env vars (`PALSERVER_TLS`, etc.) is now editable in Settings: force-token, HTTPS/TLS, listen port & host, cross-origin web origins — with one-click restart to apply (fields locked by an env var show as read-only).
-- **Open browser on startup** — a new toggle to control whether the agent opens the panel automatically when it starts.
-- **Smoother settings** — dismiss the yellow notices and Overview cards with an ×, and restore them under "Hidden cards" in Settings; theme / update / sponsor code moved up; the "Server files" browser moved to the top of Settings.
-- **Big game-data update** — added 268 previously-missing items (Yakushima gear, World Tree / awakening materials, new ammo, ancient armor, accessories, blueprints, and more).
+- **Fixed "the app flashes and closes / the web UI won't load"** — if **any single setting in the store was out of range** (e.g. `ItemWeightRate` set to 0, or dirty values from an older save), the previous build would **crash on the startup validation**, so the executable closed instantly and the panel was unreachable. Now a single bad value **falls back to that option's default** (and a fully-broken settings blob falls back to all defaults) — the agent **never fails to start** over settings again; extreme-but-in-range values (e.g. a very high XP rate) are still kept.
+
+If you were stuck on this, updating to this build gets you back in.
 
 </details>
 
 <details>
 <summary><b>🇯🇵 日本語</b></summary>
 
-- **スマホ / タブレット対応(レスポンシブ)** — パネル全体を小画面向けに再設計:ナビは折り返し、ダイアログはスクロール、データ行は溢れずに回り込みます。
-- **セキュリティ / ネットワーク設定をパネルに** — これまで環境変数(`PALSERVER_TLS` など)が必要だった項目を設定画面で編集可能に:トークン強制、HTTPS/TLS、待受ポート / アドレス、クロスオリジンの公開元 — ワンクリック再起動で反映(環境変数でロックされた項目は読み取り専用表示)。
-- **起動時にブラウザを開く** — agent 起動時にパネルを自動で開くかを選べるトグルを追加。
-- **設定まわりを改善** — 黄色のお知らせと概要カードは × で閉じられ、設定の「カード・お知らせの非表示」からまとめて再表示;テーマ / 更新 / スポンサーコードを上部へ移動;「サーバーファイル」ブラウザを設定の最上部へ。
-- **ゲームデータ大幅補完** — 抜けていた 268 個のアイテム(薬師島装備、ワールドツリー / 覚醒素材、新弾薬、古代の防具、アクセサリー、設計図など)を追加。
+- **「実行ファイルが一瞬で閉じる / Web UI が開けない」を修正** — store 内の**いずれかの設定値が範囲外**(例:`ItemWeightRate` が 0、または旧バージョンの不正値)だと、以前は起動時の検証で**全体がクラッシュ**し、実行ファイルが即閉じてパネルにも接続できませんでした。今は不正な値は**その項目の既定値に戻し**(設定全体が壊れていれば全既定値に)、設定が原因で**起動できなくなることは二度とありません**。範囲内の極端な値(超高倍率など)はそのまま保持します。
+
+この症状で止まっていた方は、このビルドに更新すれば復帰できます。
 
 </details>
 
